@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-ABAP Deep Dive Book Builder
+ABAP Deep Dive Book Builder v2
 Builds PDF and EPUB versions with auto-incrementing version numbers
+Now with Mermaid to SVG conversion support
 """
 
 import os
@@ -13,12 +14,15 @@ from datetime import datetime
 from pathlib import Path
 import tempfile
 import re
+import hashlib
 
 # Configuration
 BOOK_TITLE = "ABAP Deep Dive: Архитектура, ядро и эволюция SAP"
 AUTHOR = "ABAP Deep Dive Project"
 VERSION_FILE = "version.json"
 OUTPUT_DIR = "build"
+TEMP_DIR = "build/temp"
+DIAGRAMS_DIR = "build/diagrams"
 METADATA_FILE = "metadata.yaml"
 
 # Chapter order
@@ -39,11 +43,105 @@ CHAPTERS = [
     "ADD - Глава 12 Инструменты анализа - заглядываем внутрь.md"
 ]
 
+class MermaidProcessor:
+    """Handles extraction and rendering of Mermaid diagrams"""
+    
+    def __init__(self, diagrams_dir):
+        self.diagrams_dir = diagrams_dir
+        os.makedirs(diagrams_dir, exist_ok=True)
+        self.diagram_counter = 0
+        
+    def extract_mermaid_blocks(self, content):
+        """Extract all mermaid blocks from markdown content"""
+        mermaid_pattern = r'```(?:mermaid|{\.mermaid})\n(.*?)\n```'
+        matches = list(re.finditer(mermaid_pattern, content, re.DOTALL))
+        return matches
+    
+    def generate_diagram_id(self, mermaid_content):
+        """Generate unique ID for diagram based on content"""
+        # Use hash of content for consistent IDs
+        content_hash = hashlib.md5(mermaid_content.encode()).hexdigest()[:8]
+        return f"diagram_{content_hash}"
+    
+    def render_mermaid_to_svg(self, mermaid_content, output_path):
+        """Render mermaid diagram to SVG using mermaid CLI (mmdc)"""
+        try:
+            # Create temporary mermaid file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.mmd', delete=False) as f:
+                f.write(mermaid_content)
+                temp_mmd = f.name
+            
+            # Check if mmdc (mermaid CLI) is available
+            try:
+                subprocess.run(['mmdc', '--version'], capture_output=True, check=True)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                print("⚠️  mermaid CLI (mmdc) not found. Installing...")
+                subprocess.run(['npm', 'install', '-g', '@mermaid-js/mermaid-cli'], check=True)
+            
+            # Render to SVG
+            cmd = [
+                'mmdc',
+                '-i', temp_mmd,
+                '-o', output_path,
+                '-t', 'default',
+                '-b', 'white',
+                '--width', '800',
+                '--height', '600'
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"⚠️  Failed to render diagram: {result.stderr}")
+                return False
+            
+            # Clean up
+            os.unlink(temp_mmd)
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error rendering mermaid diagram: {e}")
+            return False
+    
+    def process_content(self, content, chapter_name=""):
+        """Process markdown content and replace mermaid blocks with SVG images"""
+        matches = self.extract_mermaid_blocks(content)
+        
+        if not matches:
+            return content
+        
+        print(f"  • Found {len(matches)} mermaid diagrams in {chapter_name}")
+        
+        # Process from end to beginning to maintain positions
+        for match in reversed(matches):
+            self.diagram_counter += 1
+            diagram_content = match.group(1)
+            diagram_id = self.generate_diagram_id(diagram_content)
+            svg_filename = f"{diagram_id}.svg"
+            svg_path = os.path.join(self.diagrams_dir, svg_filename)
+            
+            # Render diagram if not already exists
+            if not os.path.exists(svg_path):
+                print(f"    - Rendering diagram {self.diagram_counter}: {diagram_id}")
+                if self.render_mermaid_to_svg(diagram_content, svg_path):
+                    print(f"      ✓ Saved as {svg_filename}")
+                else:
+                    print(f"      ✗ Failed to render, keeping as code block")
+                    continue
+            else:
+                print(f"    - Using cached diagram: {svg_filename}")
+            
+            # Replace mermaid block with image reference
+            img_tag = f'![Diagram {self.diagram_counter}]({svg_path})'
+            content = content[:match.start()] + img_tag + content[match.end():]
+        
+        return content
+
 class BookBuilder:
     def __init__(self):
         self.version_info = self.load_version()
         self.build_number = self.version_info['build_number']
         self.version_string = self.get_version_string()
+        self.mermaid_processor = MermaidProcessor(DIAGRAMS_DIR)
         
     def load_version(self):
         """Load or create version info"""
@@ -80,20 +178,15 @@ class BookBuilder:
         """Check if required tools are installed"""
         tools = {
             'pandoc': 'pandoc --version',
-            'mermaid-filter': 'mermaid-filter --version',
             'lualatex': 'lualatex --version'
         }
         
         missing = []
-        optional_missing = []
         for tool, cmd in tools.items():
             try:
                 subprocess.run(cmd.split(), capture_output=True, check=True)
             except (subprocess.CalledProcessError, FileNotFoundError):
-                if tool == 'mermaid-filter':
-                    optional_missing.append(tool)
-                else:
-                    missing.append(tool)
+                missing.append(tool)
         
         if missing:
             print(f"❌ Missing required tools: {', '.join(missing)}")
@@ -104,12 +197,14 @@ class BookBuilder:
                 print("  • brew install --cask mactex (macOS) or apt-get install texlive-full (Linux)")
             sys.exit(1)
         
-        if optional_missing:
-            print(f"⚠️  Optional tools missing: {', '.join(optional_missing)}")
-            print("  Mermaid diagrams will not be rendered in PDF")
-            print("  Install with: npm install -g mermaid-filter")
-        else:
-            print("✅ All dependencies are installed")
+        # Check for mermaid CLI (optional)
+        try:
+            subprocess.run(['mmdc', '--version'], capture_output=True, check=True)
+            print("✅ All dependencies are installed (including mermaid CLI)")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            print("⚠️  Optional: mermaid CLI not found")
+            print("  Install with: npm install -g @mermaid-js/mermaid-cli")
+            print("  Without it, diagrams will be rendered on first run")
     
     def create_metadata(self):
         """Create metadata file for pandoc"""
@@ -137,25 +232,27 @@ toc-depth: 3
     
     def preprocess_markdown(self, content):
         """Preprocess markdown content for better PDF rendering"""
-        # Fix image references
-        content = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', r'![\\1](./\\2)', content)
+        # Fix image references to use relative paths
+        content = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', r'![\1](\2)', content)
+        return content
+    
+    def process_chapter(self, chapter_path):
+        """Process a single chapter: extract and render mermaid diagrams"""
+        with open(chapter_path, 'r') as f:
+            content = f.read()
         
-        # Ensure mermaid blocks are properly formatted
-        content = re.sub(r'```mermaid\s*\n', '```{.mermaid}\n', content)
+        # Process mermaid diagrams
+        content = self.mermaid_processor.process_content(content, os.path.basename(chapter_path))
         
-        # Temporarily comment out mermaid blocks to avoid parsing errors
-        # We'll render them as code blocks instead
-        def comment_mermaid(match):
-            diagram = match.group(1)
-            return f'```\n[Mermaid diagram - not rendered in PDF]\n{diagram}\n```'
-        
-        content = re.sub(r'```{\.mermaid}\n(.*?)\n```', comment_mermaid, content, flags=re.DOTALL)
+        # Additional preprocessing
+        content = self.preprocess_markdown(content)
         
         return content
     
     def combine_chapters(self):
-        """Combine all chapters into a single markdown file"""
-        combined_path = os.path.join(OUTPUT_DIR, f"combined_{self.version_string}.md")
+        """Combine all chapters into a single markdown file with processed diagrams"""
+        os.makedirs(TEMP_DIR, exist_ok=True)
+        combined_path = os.path.join(TEMP_DIR, f"combined_{self.version_string}.md")
         
         with open(combined_path, 'w') as outfile:
             # Write metadata first
@@ -163,15 +260,13 @@ toc-depth: 3
                 outfile.write(f.read())
             outfile.write("\n\\newpage\n\n")
             
-            # Write each chapter
+            # Process and write each chapter
             for chapter in CHAPTERS:
                 if os.path.exists(chapter):
-                    print(f"  • Adding {chapter}")
-                    with open(chapter, 'r') as f:
-                        content = f.read()
-                        content = self.preprocess_markdown(content)
-                        outfile.write(content)
-                        outfile.write("\n\\newpage\n\n")
+                    print(f"  • Processing {chapter}")
+                    processed_content = self.process_chapter(chapter)
+                    outfile.write(processed_content)
+                    outfile.write("\n\\newpage\n\n")
                 else:
                     print(f"  ⚠️  Warning: {chapter} not found")
         
@@ -184,7 +279,6 @@ toc-depth: 3
         cmd = [
             'pandoc',
             input_file,
-            '--filter', 'mermaid-filter',
             '--pdf-engine=lualatex',
             '-V', 'geometry:margin=2.5cm',
             '-V', 'mainfont=DejaVu Sans',
@@ -192,6 +286,7 @@ toc-depth: 3
             '--toc',
             '--toc-depth=3',
             '--highlight-style=tango',
+            '--resource-path=.:build/diagrams',  # Add diagrams directory to resource path
             '-o', output_file
         ]
         
@@ -204,18 +299,7 @@ toc-depth: 3
             else:
                 print(f"❌ PDF build failed:")
                 print(result.stderr)
-                
-                # Try without mermaid-filter as fallback
-                print("\n🔄 Trying without mermaid-filter...")
-                cmd.remove('--filter')
-                cmd.remove('mermaid-filter')
-                result = subprocess.run(cmd, capture_output=True, text=True)
-                if result.returncode == 0:
-                    print(f"✅ PDF created (without mermaid diagrams): {output_file}")
-                    return output_file
-                else:
-                    print(f"❌ PDF build failed completely")
-                    return None
+                return None
         except Exception as e:
             print(f"❌ Error building PDF: {e}")
             return None
@@ -238,6 +322,7 @@ toc-depth: 3
             '--toc-depth=3',
             '--epub-chapter-level=2',
             '--highlight-style=tango',
+            '--resource-path=.:build/diagrams',  # Add diagrams directory to resource path
             '-o', output_file
         ] + cover_option
         
@@ -255,9 +340,17 @@ toc-depth: 3
             print(f"❌ Error building EPUB: {e}")
             return None
     
+    def clean_temp_files(self):
+        """Clean up temporary files"""
+        if os.path.exists(METADATA_FILE):
+            os.remove(METADATA_FILE)
+        # Keep temp directory for debugging, but can be removed if needed
+        # if os.path.exists(TEMP_DIR):
+        #     shutil.rmtree(TEMP_DIR)
+    
     def build(self, formats=['pdf', 'epub']):
         """Main build process"""
-        print(f"\n🔨 ABAP Deep Dive Book Builder")
+        print(f"\n🔨 ABAP Deep Dive Book Builder v2")
         print(f"📋 Current version: {self.version_string}")
         
         # Check dependencies
@@ -267,15 +360,18 @@ toc-depth: 3
         self.increment_build()
         print(f"📋 New version: {self.version_string}")
         
-        # Create output directory
+        # Create output directories
         os.makedirs(OUTPUT_DIR, exist_ok=True)
+        os.makedirs(TEMP_DIR, exist_ok=True)
+        os.makedirs(DIAGRAMS_DIR, exist_ok=True)
         
         # Create metadata
         self.create_metadata()
         
-        # Combine chapters
-        print(f"\n📚 Combining chapters...")
+        # Process chapters and combine
+        print(f"\n📚 Processing chapters and extracting diagrams...")
         combined_file = self.combine_chapters()
+        print(f"\n🎨 Processed {self.mermaid_processor.diagram_counter} diagrams total")
         
         # Build requested formats
         results = {}
@@ -286,11 +382,12 @@ toc-depth: 3
             results['epub'] = self.build_epub(combined_file)
         
         # Clean up temporary files
-        os.remove(METADATA_FILE)
+        self.clean_temp_files()
         
         # Summary
         print(f"\n📊 Build Summary:")
         print(f"   Version: {self.version_string}")
+        print(f"   Diagrams rendered: {self.mermaid_processor.diagram_counter}")
         for fmt, path in results.items():
             if path:
                 size = os.path.getsize(path) / (1024 * 1024)  # MB
@@ -302,14 +399,25 @@ def main():
     """Main entry point"""
     import argparse
     
-    parser = argparse.ArgumentParser(description='Build ABAP Deep Dive book')
+    parser = argparse.ArgumentParser(description='Build ABAP Deep Dive book v2')
     parser.add_argument('--pdf', action='store_true', help='Build PDF version')
     parser.add_argument('--epub', action='store_true', help='Build EPUB version')
     parser.add_argument('--all', action='store_true', help='Build all formats')
     parser.add_argument('--increment-major', action='store_true', help='Increment major version')
     parser.add_argument('--increment-minor', action='store_true', help='Increment minor version')
+    parser.add_argument('--clean', action='store_true', help='Clean build artifacts')
     
     args = parser.parse_args()
+    
+    # Handle clean
+    if args.clean:
+        print("🧹 Cleaning build artifacts...")
+        if os.path.exists(OUTPUT_DIR):
+            shutil.rmtree(OUTPUT_DIR)
+        if os.path.exists(METADATA_FILE):
+            os.remove(METADATA_FILE)
+        print("✅ Clean complete")
+        return
     
     # Determine formats to build
     formats = []

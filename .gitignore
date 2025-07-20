@@ -1,0 +1,40 @@
+# Build artifacts
+build/
+*.pdf
+*.epub
+
+# Temporary files
+metadata.yaml
+combined_*.md
+
+# Version file (optional - uncomment if you want to track versions in git)
+# version.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+
+# LaTeX auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
