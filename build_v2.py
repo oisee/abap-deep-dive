@@ -65,7 +65,7 @@ class MermaidProcessor:
         return f"diagram_{content_hash}"
     
     def render_mermaid_to_svg(self, mermaid_content, output_path):
-        """Render mermaid diagram to SVG using mermaid CLI (mmdc)"""
+        """Render mermaid diagram to PNG using mermaid CLI (mmdc)"""
         try:
             # Create temporary mermaid file
             with tempfile.NamedTemporaryFile(mode='w', suffix='.mmd', delete=False) as f:
@@ -79,15 +79,17 @@ class MermaidProcessor:
                 print("⚠️  mermaid CLI (mmdc) not found. Installing...")
                 subprocess.run(['npm', 'install', '-g', '@mermaid-js/mermaid-cli'], check=True)
             
-            # Render to SVG
+            # Render directly to PNG for better compatibility
+            png_path = output_path.replace('.svg', '.png')
             cmd = [
                 'mmdc',
                 '-i', temp_mmd,
-                '-o', output_path,
+                '-o', png_path,
                 '-t', 'default',
                 '-b', 'white',
-                '--width', '800',
-                '--height', '600'
+                '--width', '1600',
+                '--height', '1200',
+                '--scale', '2'
             ]
             
             result = subprocess.run(cmd, capture_output=True, text=True)
@@ -119,22 +121,25 @@ class MermaidProcessor:
             diagram_id = self.generate_diagram_id(diagram_content)
             svg_filename = f"{diagram_id}.svg"
             svg_path = os.path.join(self.diagrams_dir, svg_filename)
+            png_filename = f"{diagram_id}.png"
+            png_path = os.path.join(self.diagrams_dir, png_filename)
             
             # Render diagram if not already exists
-            if not os.path.exists(svg_path):
+            if not os.path.exists(png_path):
                 print(f"    - Rendering diagram {self.diagram_counter}: {diagram_id}")
                 if self.render_mermaid_to_svg(diagram_content, svg_path):
-                    print(f"      ✓ Saved as {svg_filename}")
+                    print(f"      ✓ Saved as {png_filename}")
                 else:
                     print(f"      ✗ Failed to render, keeping as code block")
                     continue
             else:
-                print(f"    - Using cached diagram: {svg_filename}")
+                print(f"    - Using cached diagram: {png_filename}")
             
             # Replace mermaid block with image reference
-            # Use relative path from build directory
-            relative_svg_path = f"diagrams/{svg_filename}"
-            img_tag = f'![Diagram {self.diagram_counter}]({relative_svg_path})'
+            # Use PNG for better compatibility
+            png_filename = svg_filename.replace('.svg', '.png')
+            relative_png_path = f"diagrams/{png_filename}"
+            img_tag = f'![Diagram {self.diagram_counter}]({relative_png_path})'
             content = content[:match.start()] + img_tag + content[match.end():]
         
         return content
@@ -289,7 +294,7 @@ toc-depth: 3
             '--toc',
             '--toc-depth=3',
             '--highlight-style=tango',
-            '--resource-path=.:build/diagrams',  # Add diagrams directory to resource path
+            '--resource-path=.:build:build/diagrams',  # Add diagrams directory to resource path
             '-o', output_file
         ]
         
@@ -325,7 +330,7 @@ toc-depth: 3
             '--toc-depth=3',
             '--epub-chapter-level=2',
             '--highlight-style=tango',
-            '--resource-path=.:build/diagrams',  # Add diagrams directory to resource path
+            '--resource-path=.:build:build/diagrams',  # Add diagrams directory to resource path
             '-o', output_file
         ] + cover_option
         

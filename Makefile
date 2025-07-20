@@ -10,6 +10,16 @@ pdf:
 	@echo "📄 Building PDF version..."
 	@python3 build.py --pdf
 
+# Build PDF with SVG diagrams
+pdf-svg:
+	@echo "📄 Building PDF version with SVG diagrams..."
+	@python3 build_v2.py --pdf
+
+# Build PDF with PNG diagrams
+pdf-png:
+	@echo "📄 Building PDF version with PNG diagrams..."
+	@python3 build_v2.py --pdf
+
 # Build EPUB version  
 epub:
 	@echo "📱 Building EPUB version..."
