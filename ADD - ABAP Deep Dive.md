@@ -24,7 +24,7 @@
 
 - [Глава 9: SADL и Gateway - автоматизация REST API](ADD%20-%20Глава%209%20SADL%20и%20Gateway%20-%20автоматизация%20REST%20API.md)
 - [Глава 10: От BOPF к RAP - эволюция бизнес-объектов](ADD%20-%20Глава%2010%20От%20BOPF%20к%20RAP%20-%20эволюция%20бизнес-объектов.md)
-- Глава 11: BTP и Steampunk - ABAP в облаке
+- [Глава 11: BTP и Steampunk - ABAP в облаке](ADD%20-%20Глава%2011%20BTP%20и%20Steampunk%20-%20ABAP%20в%20облаке.md)
     - [Глава 11.1: ABAP Daemons и Channels - реактивная архитектура](ADD%20-%20Глава%2011%20ABAP%20Daemons%20и%20Channels%20-%20реактивная%20архитектура.md)
 
 **Часть V: Отладка и анализ производительности**
@@ -381,7 +381,7 @@ WP = Task Handler + Screen Processor + ABAP Processor + DB Interface
 
 **Лаборатория**: Да (ADT Eclipse, RAP Generator)
 
-### **Глава 11: BTP и Steampunk - ABAP в облаке**
+### **[Глава 11: BTP и Steampunk - ABAP в облаке](ADD%20-%20Глава%2011%20BTP%20и%20Steampunk%20-%20ABAP%20в%20облаке.md)**
 
 **Аннотация**: Ограничения cloud ABAP, отличия от on-premise, архитектура Kyma runtime.
 

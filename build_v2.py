@@ -39,6 +39,7 @@ CHAPTERS = [
     "ADD - Глава 8 SAP HANA - больше чем база данных.md",
     "ADD - Глава 9 SADL и Gateway - автоматизация REST API.md",
     "ADD - Глава 10 От BOPF к RAP - эволюция бизнес-объектов.md",
+    "ADD - Глава 11 BTP и Steampunk - ABAP в облаке.md",
     "ADD - Глава 11 ABAP Daemons и Channels - реактивная архитектура.md",
     "ADD - Глава 12 Инструменты анализа - заглядываем внутрь.md"
 ]
@@ -131,7 +132,9 @@ class MermaidProcessor:
                 print(f"    - Using cached diagram: {svg_filename}")
             
             # Replace mermaid block with image reference
-            img_tag = f'![Diagram {self.diagram_counter}]({svg_path})'
+            # Use relative path from build directory
+            relative_svg_path = f"diagrams/{svg_filename}"
+            img_tag = f'![Diagram {self.diagram_counter}]({relative_svg_path})'
             content = content[:match.start()] + img_tag + content[match.end():]
         
         return content
@@ -251,8 +254,8 @@ toc-depth: 3
     
     def combine_chapters(self):
         """Combine all chapters into a single markdown file with processed diagrams"""
-        os.makedirs(TEMP_DIR, exist_ok=True)
-        combined_path = os.path.join(TEMP_DIR, f"combined_{self.version_string}.md")
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        combined_path = os.path.join(OUTPUT_DIR, f"combined_{self.version_string}.md")
         
         with open(combined_path, 'w') as outfile:
             # Write metadata first
@@ -372,6 +375,7 @@ toc-depth: 3
         print(f"\n📚 Processing chapters and extracting diagrams...")
         combined_file = self.combine_chapters()
         print(f"\n🎨 Processed {self.mermaid_processor.diagram_counter} diagrams total")
+        print(f"📄 Combined markdown with SVG references: {combined_file}")
         
         # Build requested formats
         results = {}

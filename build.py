@@ -35,6 +35,7 @@ CHAPTERS = [
     "ADD - Глава 8 SAP HANA - больше чем база данных.md",
     "ADD - Глава 9 SADL и Gateway - автоматизация REST API.md",
     "ADD - Глава 10 От BOPF к RAP - эволюция бизнес-объектов.md",
+    "ADD - Глава 11 BTP и Steampunk - ABAP в облаке.md",
     "ADD - Глава 11 ABAP Daemons и Channels - реактивная архитектура.md",
     "ADD - Глава 12 Инструменты анализа - заглядываем внутрь.md"
 ]
@@ -88,8 +89,8 @@ class BookBuilder:
         optional_missing = []
         for tool, cmd in tools.items():
             try:
-                subprocess.run(cmd.split(), capture_output=True, check=True)
-            except (subprocess.CalledProcessError, FileNotFoundError):
+                subprocess.run(cmd.split(), capture_output=True, check=True, timeout=5)
+            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
                 if tool == 'mermaid-filter':
                     optional_missing.append(tool)
                 else:
