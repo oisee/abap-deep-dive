@@ -6,18 +6,19 @@
 
 ```
 patches/
-├── apply_patches.py      # Скрипт для применения патчей
-├── README.md            # Этот файл
-├── chapter_1/           # Патчи для главы 1
-│   ├── 01_critical_fixes.patch    # Критические исправления
-│   ├── 02_important_fixes.patch   # Важные исправления
-│   └── 03_todo_additions.patch    # Добавления из TODO
-├── chapter_2/           # Патчи для главы 2
+├── apply_patches.py                    # Скрипт для применения патчей
+├── README.md                          # Этот файл
+├── PATCH_All_Chapters_Versioning.md   # Специальный патч для версий
+├── PATCH_Ch9_Gateway_Critical_Fixes.md # Специальный патч для главы 9
+├── PATCH_Ch12_Memory_Inspector_Fix.md  # Специальный патч для главы 12
+├── chapter_1/                         # Патчи для главы 1
+│   ├── 01_critical_fixes.patch
+│   ├── 02_important_fixes.patch
+│   └── 03_todo_additions.patch
+├── chapter_2/ - chapter_7_1/          # Патчи для глав 2-7.1
 │   ├── 01_critical_fixes.patch
 │   └── 02_important_fixes.patch
-└── chapter_3/           # Патчи для главы 3
-    ├── 01_critical_fixes.patch
-    └── 02_important_fixes.patch
+└── reports/                           # Отчеты о применении патчей
 ```
 
 ## Использование
@@ -69,10 +70,18 @@ python patches/apply_patches.py 2 --dry-run  # Предпросмотр для �
 
 | Глава | Критические | Важные | TODO | Статус |
 |-------|------------|--------|------|--------|
-| 1 | ✅ 4 | ✅ 10 | ✅ 5 | Готово |
-| 2 | ✅ 5 | ✅ 8 | ❌ | Частично |
-| 3 | ✅ 8 | ✅ 7 | ❌ | Частично |
-| 4-12 | ❌ | ❌ | ❌ | Ожидает |
+| 1 | ✅ | ✅ | ✅ | Готово |
+| 2 | ✅ | ✅ | ❌ | Готово |
+| 3 | ✅ | ✅ | ❌ | Готово |
+| 4 | ✅ | ✅ | ❌ | Готово |
+| 5 | ✅ | ✅ | ❌ | Готово |
+| 6 | ✅ | ✅ | ❌ | Готово |
+| 7 | ✅ | ✅ | ❌ | Готово |
+| 7.1 | ✅ | ✅ | ❌ | Готово |
+| 8-11 | ❌ | ❌ | ❌ | Ожидает |
+| 9 | ✅ Gateway | ❌ | ❌ | Специальный |
+| 12 | ✅ Memory Inspector | ❌ | ❌ | Специальный |
+| All | ✅ Versioning | ❌ | ❌ | Специальный |
 
 ## Примечания
 

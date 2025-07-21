@@ -36,7 +36,7 @@ graph TB
 
 ### Уровень представления (Presentation Layer)
 
-На уровне представления исторически доминировал SAP GUI — толстый клиент (thick client), реализующий протокол DIAG (Dynamic Information and Action Gateway) для связи с сервером приложений. Протокол DIAG оптимизирован для минимизации сетевого трафика: вместо передачи полных экранных форм передаются только изменения и данные полей. Современная архитектура дополнила этот уровень веб-интерфейсами (Fiori, Web Dynpro), использующими HTTP/HTTPS через Internet Communication Manager (ICM).
+На уровне представления исторически доминировал SAP GUI — тонкий клиент, реализующий протокол DIAG (Dynamic Information and Action Gateway) для связи с сервером приложений. Протокол DIAG оптимизирован для минимизации сетевого трафика: вместо передачи полных экранных форм передаются только изменения и данные полей. Современная архитектура дополнила этот уровень веб-интерфейсами (Fiori, Web Dynpro), использующими HTTP/HTTPS через Internet Communication Manager (ICM).
 
 ### Уровень приложений (Application Layer)
 
@@ -94,7 +94,7 @@ graph TB
                 SPO1[Spool WP]
             end
             GW1[Gateway<br/>gwrd]
-            ICM1[ICM<br/>Integrated in disp+work]
+            ICM1[ICM<br/>icman]
             DISP1 --> DIA1
             DISP1 --> DIA2
             DISP1 --> BTC1
@@ -110,7 +110,7 @@ graph TB
                 BTC2[Background WP]
             end
             GW2[Gateway<br/>gwrd]
-            ICM2[ICM<br/>Integrated in disp+work]
+            ICM2[ICM<br/>icman]
             DISP2 --> DIA3
             DISP2 --> DIA4
             DISP2 --> BTC2
@@ -142,34 +142,12 @@ graph TB
 
 ```bash
 # Типичный вывод ps aux | grep <SID>
-Unix/Linux:
 <sid>adm  12345  disp+work  # Dispatcher и work processes
 <sid>adm  12346  gwrd       # Gateway процесс
-<sid>adm  12347  ms.sap<SID> # Message Server (только в центральной инстанции)
-<sid>adm  12348  enserver   # Enqueue Server (только в ASCS)
-
-Windows:
-<sid>adm  12345  disp+work.exe   # Dispatcher и work processes
-<sid>adm  12346  gwrd.exe        # Gateway процесс
-<sid>adm  12347  msg_server.exe  # Message Server (только в центральной инстанции)
-<sid>adm  12348  enserver.exe    # Enqueue Server (только в ASCS)
-
-Примечание: ICM интегрирован в disp+work с NetWeaver 6.40
+<sid>adm  12347  icman      # Internet Communication Manager
+<sid>adm  12348  ms.sap     # Message Server (только в центральной инстанции)
+<sid>adm  12349  enserver   # Enqueue Server (только в ASCS)
 ```
-## Стандартные порты SAP
-
-Каждый компонент SAP использует стандартизированную схему портов:
-
-| Компонент | Порт | Описание |
-|-----------|------|----------|
-| Message Server | 36<NN> | Например, 3600 для instance 00 |
-| Dispatcher | 32<NN> | Например, 3200 для instance 00 |
-| Gateway | 33<NN> | Например, 3300 для instance 00 |
-| ICM HTTP | 80<NN> | Например, 8000 для instance 00 |
-| ICM HTTPS | 443<NN> | Например, 44300 для instance 00 |
-| Enqueue Server | 39<NN> | Например, 3900 для instance 00 |
-
-где <NN> - номер инстанса (00-99)
 ## Стандартные порты SAP
 
 Каждый компонент SAP использует стандартизированную схему портов:
@@ -229,7 +207,7 @@ graph LR
         
         subgraph "Communication"
             GW[Gateway<br/>gwrd]
-            ICM[ICM<br/>Integrated in disp+work]
+            ICM[ICM<br/>icman]
         end
         
         subgraph "Shared Memory"
@@ -426,167 +404,6 @@ graph TB
 - Упрощенная логика failover
 - Улучшенная производительность за счет оптимизированных структур данных
 
-markdown
-## Web Dispatcher — шлюз для веб-запросов
-
-В современных ландшафтах SAP Web Dispatcher играет критическую роль:
-
-```mermaid
-graph LR
-    Internet[Internet] --> WD[Web Dispatcher<br/>Port 443/80]
-    WD --> ICM1[ICM Server 1<br/>Port 8000]
-    WD --> ICM2[ICM Server 2<br/>Port 8000]
-    WD --> ICM3[ICM Server 3<br/>Port 8000]
-```
-
-### Ключевые функции:
-- **Балансировка нагрузки** HTTP/HTTPS трафика
-- **SSL termination** — обработка шифрования
-- **URL filtering** — безопасность на уровне путей
-- **Session persistence** — привязка сессий
-- **Cache** — кэширование статического контента
-
-### Конфигурация:
-```
-# Основные параметры Web Dispatcher
-wdisp/system_0 = SID=PRD, MSHOST=prdms, MSPORT=8100, SRCSRV=*:80
-wdisp/system_1 = SID=PRD, MSHOST=prdms, MSPORT=8101, SRCSRV=*:443, SSL=1
-```
-```
-
-### Добавление 2: Полный список транзакций мониторинга
-- Файл: ADD - Глава 1 Анатомия SAP системы.md
-- Строка: перед заключением (строка ~610)
-- Добавить:
-```markdown
-## Ключевые транзакции для анализа архитектуры
-
-### Мониторинг компонентов:
-| Транзакция | Назначение | Что показывает |
-|------------|------------|----------------|
-| SM51 | Список серверов | Все активные инстансы системы |
-| SM50 | Процессы инстанса | Work processes текущего сервера |
-| SM66 | Глобальные процессы | Work processes всей системы |
-| SM12 | Блокировки | Enqueue записи |
-| SM13 | Update записи | Очередь обновлений |
-| SM21 | System log | Критические события |
-| ST06 | OS Monitor | Загрузка CPU/память/диски |
-| ST02 | Tune Summary | Использование памяти и буферов |
-| AL08 | Пользователи | Распределение по серверам |
-| SMLG | Logon Groups | Группы балансировки |
-
-### Команды анализа ОС:
-```bash
-# Linux/Unix
-ps -ef | grep sapstart    # SAP Start Service
-ps -ef | grep dw          # Work processes
-ipcs -m | grep <sid>adm   # Shared memory
-
-# Windows
-tasklist | findstr disp   # Dispatcher процессы
-tasklist | findstr sapstart # Start services
-```
-```
-
-### Добавление 3: Исправление CDS View
-- Файл: ADD - Глава 1 Анатомия SAP системы.md  
-- Строка: 544-557
-- Найти: неправильный синтаксис CDS
-- Заменить:
-```sql
-@AbapCatalog.sqlViewName: 'ZLARGEORDERSV'
-@AbapCatalog.compiler.compareFilter: true
-@AbapCatalog.preserveKey: true
-@AccessControl.authorizationCheck: #CHECK
-@EndUserText.label: 'Large Orders View'
-define view Z_Large_Orders
-  with parameters
-    @Environment.systemField: #CLIENT
-    p_client : abap.clnt,
-    p_date_from : dats,
-    p_date_to : dats
-as select from vbak as header
-  inner join vbap as item
-    on header.vbeln = item.vbeln
-{
-  key header.client,
-  key header.vbeln as OrderNumber,
-  header.erdat as OrderDate,
-  header.kunnr as Customer,
-  @Semantics.amount.currencyCode: 'Currency'
-  sum( item.netwr ) as TotalAmount,
-  @Semantics.currencyCode: true
-  header.waerk as Currency
-}
-where header.client = $parameters.p_client
-  and header.erdat between $parameters.p_date_from and $parameters.p_date_to
-group by header.client,
-         header.vbeln,
-         header.erdat,
-         header.kunnr,
-         header.waerk
-having sum( item.netwr ) > 10000
-```
-
-### Добавление 4: Информация о платформах
-- Файл: ADD - Глава 1 Анатомия SAP системы.md
-- Строка: после текущей строки 150
-- Добавить:
-```markdown
-## Платформо-специфичные особенности
-
-### Пути установки по умолчанию:
-| ОС | Путь SAP | Исполняемые файлы |
-|----|----------|-------------------|
-| Linux/Unix | /usr/sap/<SID> | /sapmnt/<SID>/exe |
-| Windows | C:\usr\sap\<SID> | \\<server>\sapmnt\<SID>\exe |
-| AIX | /usr/sap/<SID> | /sapmnt/<SID>/exe |
-
-### Различия в управлении процессами:
-- **Unix/Linux**: отдельные процессы ОС для каждого work process
-- **Windows**: потоки (threads) внутри disp+work.exe
-- **Влияние**: разные подходы к мониторингу и отладке
-```
-
-### Добавление 5: Секция безопасности
-- Файл: ADD - Глава 1 Анатомия SAP системы.md
-- Строка: перед заключением
-- Добавить:
-```markdown
-## Архитектура безопасности
-
-### Сетевые зоны:
-```mermaid
-graph TB
-    subgraph "DMZ"
-        WD[Web Dispatcher]
-        SR[SAP Router]
-    end
-    
-    subgraph "Application Zone"
-        AS1[App Server 1]
-        AS2[App Server 2]
-        MS[Message Server]
-    end
-    
-    subgraph "Database Zone"
-        DB[(Database)]
-        ES[Enqueue Server]
-    end
-    
-    Internet --> WD
-    WD --> AS1
-    WD --> AS2
-    SR --> MS
-    AS1 --> DB
-    AS2 --> DB
-```
-
-### Ключевые принципы:
-- Разделение на зоны безопасности
-- Минимизация открытых портов
-- Шифрование коммуникаций (SNC)
-- Регулярные обновления ядра
 ### Интеграция с кластерным ПО
 
 SAP не реализует собственное кластерное решение, а интегрируется с платформенными решениями:

@@ -42,28 +42,6 @@ graph TB
 ```
 
 ### Механизм памяти на уровне ОС
-## Платформенные различия
-
-### Unix/Linux
-- Использует System V shared memory (shmat/shmdt)
-- mmap для memory-mapped файлов
-- /dev/shm для tmpfs
-
-### Windows
-- CreateFileMapping/MapViewOfFile для shared memory
-- VirtualAlloc для heap memory
-- Global heap functions
-## Платформенные различия
-
-### Unix/Linux
-- Использует System V shared memory (shmat/shmdt)
-- mmap для memory-mapped файлов
-- /dev/shm для tmpfs
-
-### Windows
-- CreateFileMapping/MapViewOfFile для shared memory
-- VirtualAlloc для heap memory
-- Global heap functions
 
 ```c
 // Псевдокод инициализации памяти work process
@@ -235,12 +213,6 @@ graph TB
             
             subgraph "Blocks"
                 B1[Block 1<br/>4 MB]
-### Важный параметр: em/address_space_MB
-
-Ограничивает общее адресное пространство для Extended Memory:
-- По умолчанию: 8192 MB (32-bit), не ограничено (64-bit)
-- Рекомендация: оставить по умолчанию для 64-bit систем
-- Для 32-bit: может потребоваться уменьшение при проблемах с адресным пространством
                 B2[Block 2<br/>4 MB]
                 B3[Block 3<br/>4 MB]
                 BN[Block N<br/>4 MB]
@@ -252,12 +224,6 @@ graph TB
             U2[User 2<br/>Quota: 2 GB<br/>Used: 1.5 GB]
             U3[User 3<br/>Quota: 2 GB<br/>Used: 200 MB]
         end
-### Важный параметр: em/address_space_MB
-
-Ограничивает общее адресное пространство для Extended Memory:
-- По умолчанию: 8192 MB (32-bit), не ограничено (64-bit)
-- Рекомендация: оставить по умолчанию для 64-bit систем
-- Для 32-bit: может потребоваться уменьшение при проблемах с адресным пространством
         
         B1 --> U1
         B2 --> U1
@@ -587,19 +553,6 @@ typedef struct pxa_entry {
 @EndUserText.label: 'Customer Configuration'
 @AbapCatalog.buffering.status: #ACTIVE
 @AbapCatalog.buffering.type: #GENERIC
-### Режимы синхронизации буферов (rdisp/bufrefmode)
-
-1. **sendon,exeauto** (по умолчанию)
-   - Автоматическая синхронизация при изменениях
-   - Минимальная задержка
-
-2. **sendon,exeoff**
-   - Отправка уведомлений без автоматического обновления
-   - Требует ручной синхронизации
-
-3. **sendoff,exeoff**
-   - Полностью отключена синхронизация
-   - Только для тестовых систем!
 @AbapCatalog.buffering.numberOfKeyFields: 2
 define table zcust_config {
   key client : mandt not null;
@@ -617,19 +570,6 @@ sequenceDiagram
     participant App1 as App Server 1
     participant Buffer1 as Local Buffer 1
     participant DB as Database
-### Режимы синхронизации буферов (rdisp/bufrefmode)
-
-1. **sendon,exeauto** (по умолчанию)
-   - Автоматическая синхронизация при изменениях
-   - Минимальная задержка
-
-2. **sendon,exeoff**
-   - Отправка уведомлений без автоматического обновления
-   - Требует ручной синхронизации
-
-3. **sendoff,exeoff**
-   - Полностью отключена синхронизация
-   - Только для тестовых систем!
     participant MSrv as Message Server
     participant Buffer2 as Local Buffer 2
     participant App2 as App Server 2

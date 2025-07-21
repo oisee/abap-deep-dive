@@ -1,5 +1,11 @@
 # Глава 11.1: ABAP Daemons и Channels - реактивная архитектура
 
+### Требования к версии
+- SAP NetWeaver 7.40 SP08 - AMC (ABAP Messaging Channels)
+- SAP NetWeaver 7.40 SP05 - APC (ABAP Push Channels)
+- SAP NetWeaver 7.52 - ABAP Daemon Framework
+- SAP NetWeaver 7.54 - расширенные возможности daemons
+
 ## 11.1.1. ABAP Daemon Framework
 
 ABAP Daemon Framework (ADF) представляет собой революционное расширение классической модели выполнения ABAP, позволяющее создавать долгоживущие фоновые процессы, которые могут реагировать на события в реальном времени.

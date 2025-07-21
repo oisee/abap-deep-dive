@@ -1,5 +1,11 @@
 # Глава 9: SADL и Gateway - автоматизация REST API
 
+### Требования к версии
+- SAP NetWeaver 7.40 - SAP Gateway базовая функциональность
+- SAP NetWeaver 7.50 - SADL framework
+- SAP NetWeaver 7.52 - расширенные возможности SADL
+- S/4HANA 1709 - полная интеграция с CDS
+
 ## 9.1. Архитектура SAP Gateway
 
 SAP Gateway представляет собой технологическую платформу, которая обеспечивает простой и стандартизированный доступ к бизнес-данным и процессам SAP через REST-based сервисы. В основе архитектуры лежит идея предоставления SAP функциональности через открытые протоколы, понятные современным веб-приложениям и мобильным устройствам.
@@ -129,8 +135,10 @@ sequenceDiagram
 Конфигурация ICF сервиса для Gateway:
 
 ```abap
-* Handler class for OData services
-CLASS cl_http_handler_odata IMPLEMENTATION.
+* Пример реального handler класса для OData
+CLASS /iwfnd/cl_sodata_http_handler DEFINITION
+  PUBLIC
+  INHERITING FROM if_http_extension.
   METHOD if_http_extension~handle_request.
     DATA: lo_server TYPE REF TO if_http_server.
     lo_server = server.
@@ -138,16 +146,17 @@ CLASS cl_http_handler_odata IMPLEMENTATION.
     " Extract service details from URL
     DATA(lv_service) = lo_server->request->get_header_field( '~path_info' ).
     
-    " Initialize Gateway runtime
-    DATA(lo_gateway) = /iwfnd/cl_mgw_runtime=>create(
-      iv_service_id = extract_service_id( lv_service )
+    * Правильный способ обработки Gateway запросов
+    DATA(lo_request_provider) = /iwfnd/cl_mgw_request_provider=>create( 
+      io_request = lo_server->request 
     ).
     
-    " Process request
-    lo_gateway->process_request(
-      io_request  = lo_server->request
+    DATA(lo_response_provider) = /iwfnd/cl_mgw_response_provider=>create(
       io_response = lo_server->response
     ).
+    
+    * Или использование Gateway API
+    DATA(lo_facade) = /iwfnd/cl_mgw_facade_provider=>get_facade( ).
   ENDMETHOD.
 ENDCLASS.
 ```

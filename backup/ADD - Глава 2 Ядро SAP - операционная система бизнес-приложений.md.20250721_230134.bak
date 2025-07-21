@@ -81,29 +81,12 @@ graph TB
 Типичная структура каталога ядра в файловой системе:
 
 ```bash
-Unix/Linux: /usr/sap/<SID>/SYS/exe/uc/<platform>/
-Windows: <drive>:\usr\sap\<SID>\SYS\exe\uc\<platform>\
-
-Примеры значений <platform>:
-- linuxx86_64   # Linux x86-64
-- ntamd64       # Windows x64
-- rs6000_64     # AIX Power
-- sunx86_64     # Solaris x86-64
-# Unix/Linux:
+/usr/sap/<SID>/SYS/exe/uc/<platform>/
 ├── disp+work           # Основной исполняемый файл (dispatcher + work process)
-├── gwrd                # SAP Gateway
-├── ms.sap<SID>         # Message Server
+├── gwrd                # Gateway daemon
+├── icman               # Internet Communication Manager
+├── ms.sap              # Message Server
 ├── enserver            # Enqueue Server
-├── enrepserver         # Enqueue Replication Server (для HA)
-
-# Windows:
-├── disp+work.exe       # Основной исполняемый файл
-├── gwrd.exe            # SAP Gateway
-├── msg_server.exe      # Message Server
-├── enserver.exe        # Enqueue Server
-├── enrepserver.exe     # Enqueue Replication Server (для HA)
-
-# Примечание: ICM интегрирован в disp+work с NetWeaver 6.40
 ├── sapstartsrv         # Start Service
 ├── sapcontrol          # Control Interface
 ├── saphostexec         # Host Agent Executable
@@ -129,7 +112,7 @@ Windows: <drive>:\usr\sap\<SID>\SYS\exe\uc\<platform>\
 - **release**: Основная версия (753 = NetWeaver 7.53)
 - **patch_level**: Уровень патча
 - **platform**: Целевая платформа (linuxx86_64, ntamd64, etc.)
-- **bit**: Разрядность (32-битные версии больше не разрабатываются для новых релизов с NetWeaver 7.40, но поддерживаются для legacy систем)
+- **bit**: Разрядность (устарело, теперь только 64-bit)
 
 ```mermaid
 graph LR
@@ -239,20 +222,12 @@ int main(int argc, char* argv[]) {
 
 ```bash
 # Пример запуска work process
-disp+work pf=/sapmnt/SID/profile/SID_DVEBMGS00_hostname wp_id=1 wp_type=<TYPE>
-
-Где TYPE может быть:
-- DIA  - Dialog Work Process
-- BTC  - Background Work Process  
-- UPD  - Update Work Process (V1)
-- UPD2 - Update 2 Work Process (V2)
-- ENQ  - Enqueue Work Process
-- SPO  - Spool Work Process
+disp+work pf=/sapmnt/SID/profile/SID_DVEBMGS00_hostname wp_id=1 wp_type=DIA
 ```
 
 ### ICM (Internet Communication Manager)
 
-ICM (Internet Communication Manager) — это интегрированный компонент disp+work начиная с NetWeaver 6.40, обрабатывающий HTTP(S), SMTP и другие интернет-протоколы. ICM не является отдельным процессом.
+ICM — это веб-сервер и клиент в составе ядра SAP, обрабатывающий HTTP(S), SMTP и другие интернет-протоколы.
 
 ```mermaid
 sequenceDiagram
@@ -282,15 +257,8 @@ sequenceDiagram
 
 ```ini
 # Пример конфигурации ICM в профиле
-# Стандартная схема портов SAP: <prefix><NN>, где NN - номер инстанса
-icm/server_port_0 = PROT=HTTP,PORT=8000    # Стандарт: 80<NN>
-icm/server_port_1 = PROT=HTTPS,PORT=44300  # Стандарт: 443<NN>
-
-# Другие стандартные порты:
-# Message Server: 3600      # 36<NN>
-# Dispatcher:     3200      # 32<NN>  
-# Gateway:        3300      # 33<NN>
-# Enqueue Server: 3900      # 39<NN>
+icm/server_port_0 = PROT=HTTPS,PORT=443,PROCTIMEOUT=600,TIMEOUT=600
+icm/server_port_1 = PROT=HTTP,PORT=8000,PROCTIMEOUT=600,TIMEOUT=600
 icm/max_threads = 250
 icm/max_conn = 5000
 icm/keep_alive_timeout = 60
@@ -299,11 +267,7 @@ icm/host_name_full = $(SAPLOCALHOST).company.com
 
 ### Gateway (gwrd)
 
-Gateway — это коммуникационный процесс для RFC соединений:
-- Unix/Linux: gwrd
-- Windows: gwrd.exe
-- Стандартный порт: 33<NN> (например, 3300 для instance 00)
-- Конфигурационные файлы: secinfo, reginfo
+Gateway — это коммуникационный процесс, обеспечивающий RFC (Remote Function Call) взаимодействие.
 
 ```mermaid
 graph TB
@@ -378,15 +342,6 @@ stateDiagram-v2
     Stopping --> [*]
 ```
 
-Технические детали Message Server:
-- Unix/Linux: ms.sap<SID>
-- Windows: msg_server.exe
-- Порт: 36<NN> (внутренний), 81<NN> (HTTP)
-- Параметры:
-  - ms/server_port_0 = PROT=HTTP,PORT=8100
-  - rdisp/mshost = <hostname>
-  - rdisp/msserv = sapms<SID> или 3600
-
 ## 2.3. Обновления ядра и необходимость SGEN
 
 ### Процесс обновления ядра
@@ -445,13 +400,7 @@ SAPCAR -xf /tmp/SAPEXE_100-80005374.SAR
 SAPCAR -xf /tmp/SAPEXEDB_100-80005373.SAR
 
 # 4. Установка прав
-# Unix/Linux:
 ./saproot.sh <sid>
-
-# Windows (с правами администратора):
-# Права устанавливаются автоматически при установке SAP
-# Или через icacls для ручной настройки:
-icacls D:\usr\sap\<SID> /grant "SAP_<SID>_GlobalAdmin:(OI)(CI)F"
 
 # 5. Запуск системы
 startsap all
@@ -491,11 +440,6 @@ graph LR
 #### Структура ABAP Load
 
 ABAP Load содержит версионную информацию, привязанную к версии компилятора:
-
-## Концептуальная структура ABAP Load (упрощенное представление)
-
-Примечание: Это концептуальное представление для понимания. 
-Реальная структура является проприетарной и значительно сложнее.
 
 ```c
 // Псевдо-структура ABAP Load Header
@@ -567,15 +511,12 @@ graph TB
 Параметры SGEN для оптимизации:
 
 ```abap
-* SGEN настраивается через транзакцию SGEN или report
-SUBMIT RSGENINVLAS
-  WITH p_parall = 8    " Количество параллельных процессов
-  WITH p_cont   = 'X'  " Продолжить после ошибок
-  AND RETURN.
+* Пример настройки параллельности SGEN
+DATA: lv_parallel_processes TYPE i VALUE 10.
 
-* Или через транзакцию SGEN:
-* - Utilities -> Settings -> Parallel Generation
-* - Установить количество процессов
+CALL FUNCTION 'SGEN_SET_PARALLEL_PROCESSES'
+  EXPORTING
+    parallel_processes = lv_parallel_processes.
 ```
 
 ### Почему SGEN необходим
