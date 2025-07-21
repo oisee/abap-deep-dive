@@ -3,6 +3,8 @@ build/
 *.pdf
 *.epub
 
+.*.json
+
 # Temporary files
 metadata.yaml
 combined_*.md
