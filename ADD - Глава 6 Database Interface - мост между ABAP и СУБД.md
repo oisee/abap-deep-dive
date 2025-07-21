@@ -348,35 +348,6 @@ sequenceDiagram
 graph TB
     subgraph "Table Buffering Types"
         subgraph "Full Buffering"
-### Детали синхронизации буферов
-## Статистика таблиц для оптимизатора
-
-1. **Обновление статистики**:
-   - Транзакция DB20
-   - Автоматическое обновление по расписанию
-   - Влияет на планы выполнения
-
-2. **Критично для**:
-   - Больших таблиц
-   - После массовых изменений
-   - Таблиц с неравномерным распределением
-
-3. **Проблемы без статистики**:
-   - Неоптимальные планы выполнения
-   - Full table scans вместо index access
-
-1. **Задержка синхронизации**:
-   - По умолчанию: 60 секунд
-   - Параметр: rdisp/bufreftime
-
-2. **Режимы (rdisp/bufrefmode)**:
-   - sendon,exeauto - автоматическая синхронизация
-   - sendon,exeoff - ручная синхронизация
-   - sendoff,exeoff - синхронизация отключена
-
-3. **Влияние на производительность**:
-   - Частые инвалидации снижают эффективность
-   - Массовые изменения требуют планирования
             FULL[Complete Table<br/>in Buffer]
             FULL_USE[Use for:<br/>- Small tables<br/>- Rarely changed<br/>- Frequently read]
 ### Расширенные возможности CDS
@@ -461,61 +432,8 @@ flowchart TD
     CHECK_FULL -->|No| CHECK_GENERIC
     
     CHECK_GENERIC -->|Yes| CHECK_KEY
-### Детали синхронизации буферов
-## Статистика таблиц для оптимизатора
-
-1. **Обновление статистики**:
-   - Транзакция DB20
-   - Автоматическое обновление по расписанию
-   - Влияет на планы выполнения
-
-2. **Критично для**:
-   - Больших таблиц
-   - После массовых изменений
-   - Таблиц с неравномерным распределением
-
-3. **Проблемы без статистики**:
-   - Неоптимальные планы выполнения
-   - Full table scans вместо index access
-
-1. **Задержка синхронизации**:
-   - По умолчанию: 60 секунд
-   - Параметр: rdisp/bufreftime
-
-2. **Режимы (rdisp/bufrefmode)**:
-   - sendon,exeauto - автоматическая синхронизация
-   - sendon,exeoff - ручная синхронизация
-   - sendoff,exeoff - синхронизация отключена
-
-3. **Влияние на производительность**:
-   - Частые инвалидации снижают эффективность
-   - Массовые изменения требуют планирования
     CHECK_GENERIC -->|No| CHECK_SINGLE
     
-### Расширенные возможности CDS
-
-```sql
-@AbapCatalog.sqlViewName: 'ZCDS_ADVANCED'
-define view Z_Advanced_View as select from vbak
-  association [0..*] to vbap as _Items 
-    on $projection.vbeln = _Items.vbeln
-{
-  key vbeln,
-  erdat,
-  netwr,
-  
-  // Virtual elements
-  @ObjectModel.virtualElement: true
-  cast( '' as abap.char(10) ) as virtual_field,
-  
-  // Aggregations
-  @DefaultAggregation: #SUM
-  netwr as total_value,
-  
-  // Associations
-  _Items
-}
-```
     CHECK_KEY -->|Yes| BUFFER_VALID
     CHECK_KEY -->|No| USE_DB
     
@@ -565,6 +483,37 @@ sequenceDiagram
     BUF2-->>APP2: Return Data
 ```
 
+### Детали синхронизации буферов
+
+1. **Задержка синхронизации**:
+   - По умолчанию: 60 секунд
+   - Параметр: rdisp/bufreftime
+
+2. **Режимы (rdisp/bufrefmode)**:
+   - sendon,exeauto - автоматическая синхронизация
+   - sendon,exeoff - ручная синхронизация
+   - sendoff,exeoff - синхронизация отключена
+
+3. **Влияние на производительность**:
+   - Частые инвалидации снижают эффективность
+   - Массовые изменения требуют планирования
+
+### Статистика таблиц для оптимизатора
+
+1. **Обновление статистики**:
+   - Транзакция DB20
+   - Автоматическое обновление по расписанию
+   - Влияет на планы выполнения
+
+2. **Критично для**:
+   - Больших таблиц
+   - После массовых изменений
+   - Таблиц с неравномерным распределением
+
+3. **Проблемы без статистики**:
+   - Неоптимальные планы выполнения
+   - Full table scans вместо index access
+
 ### Параметры управления буферизацией
 
 Ключевые параметры для настройки буферов:
@@ -593,6 +542,31 @@ TRY.
 ENDTRY.
 ```
 - `rsdb/obj/buffersize` - размер буфера для объектов
+
+### Расширенные возможности CDS
+
+```sql
+@AbapCatalog.sqlViewName: 'ZCDS_ADVANCED'
+define view Z_Advanced_View as select from vbak
+  association [0..*] to vbap as _Items 
+    on $projection.vbeln = _Items.vbeln
+{
+  key vbeln,
+  erdat,
+  netwr,
+  
+  // Virtual elements
+  @ObjectModel.virtualElement: true
+  cast( '' as abap.char(10) ) as virtual_field,
+  
+  // Aggregations
+  @DefaultAggregation: #SUM
+  netwr as total_value,
+  
+  // Associations
+  _Items
+}
+```
 
 ### Ограничения и требования AMDP
 
