@@ -4,7 +4,7 @@
 
 ## 📖 Скачать книгу
 
-**[📄 Скачать PDF (последняя версия)](https://github.com/oisee/abap-deep-dive/releases/latest/download/ABAP_Deep_Dive.pdf)**
+**[📄 Скачать PDF A4 (последняя версия)](https://github.com/oisee/abap-deep-dive/release/AAD-combined_20250721-v1.0-b28-a4.pdf)**
 
 *Книга также доступна в разделе [Releases](https://github.com/oisee/abap-deep-dive/releases)*
 
