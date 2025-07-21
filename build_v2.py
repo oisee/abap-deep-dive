@@ -266,6 +266,9 @@ class BookBuilder:
     
     def create_metadata(self):
         """Create metadata file for pandoc"""
+        header_includes = r"""  \renewcommand{\thepage}{\arabic{page}}
+  \pagenumbering{arabic}"""
+        
         metadata = f"""---
 title: "{BOOK_TITLE}"
 author: "{AUTHOR}"
@@ -283,6 +286,9 @@ linkcolor: blue
 urlcolor: blue
 toccolor: black
 toc-depth: 3
+pagestyle: plain
+header-includes: |
+{header_includes}
 ---
 """
         with open(METADATA_FILE, 'w') as f:
@@ -352,17 +358,13 @@ toc-depth: 3
         combined_path = os.path.join(OUTPUT_DIR, f"combined_{self.version_string}.md")
         
         with open(combined_path, 'w') as outfile:
-            # Write metadata first
-            with open(METADATA_FILE, 'r') as f:
-                outfile.write(f.read())
-            outfile.write("\n\\newpage\n\n")
-            
-            # Add title page with cover image if exists
+            # Don't write metadata to combined file, pass via command line instead
+            # Add cover image as the very first thing
             if os.path.exists('add-cover.png'):
                 # Copy cover to build directory
                 shutil.copy('add-cover.png', os.path.join(OUTPUT_DIR, 'add-cover.png'))
                 
-                # Use markdown image syntax for better compatibility
+                # Add cover page
                 outfile.write("![](add-cover.png)\n\n")
                 outfile.write("\\newpage\n\n")
             
@@ -382,17 +384,29 @@ toc-depth: 3
         """Build PDF using pandoc"""
         output_file = os.path.join(OUTPUT_DIR, f"ABAP_Deep_Dive_{self.version_string}.pdf")
         
+        # Create header file for LaTeX customizations
+        header_file = os.path.join(OUTPUT_DIR, 'header.tex')
+        with open(header_file, 'w') as f:
+            f.write(r"\pagenumbering{arabic}" + "\n")
+            f.write(r"\renewcommand{\thepage}{\arabic{page}}" + "\n")
+        
         cmd = [
             'pandoc',
             input_file,
             '-f', 'markdown+raw_tex',  # Enable raw LaTeX parsing
             '--pdf-engine=lualatex',
+            '--metadata', f'title={BOOK_TITLE}',
+            '--metadata', f'author={AUTHOR}',
+            '--metadata', f'date={datetime.now().strftime("%B %Y")}',
+            '--metadata', 'lang=ru-RU',
             '-V', 'geometry:margin=2.5cm',
             '-V', 'mainfont=DejaVu Sans',
             '-V', 'monofont=DejaVu Sans Mono',
             '-V', 'documentclass=book',
             '-V', 'fontenc=T1',
             '-V', 'inputenc=utf8',
+            '-V', 'pagestyle=plain',
+            '--include-in-header', header_file,
             '--toc',
             '--toc-depth=3',
             '--highlight-style=tango',
