@@ -1,3 +1,4 @@
+![ABAP Deep Dive Cover](add-cover.png)
 # ⚠️ ВНИМАНИЕ: КНИГА НАХОДИТСЯ В СТАДИИ РАЗРАБОТКИ (UNDER CONSTRUCTION) ⚠️
 
 ## 🚧 НЕ ИСПОЛЬЗУЙТЕ КАК РУКОВОДСТВО! 🚧
