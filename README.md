@@ -31,10 +31,7 @@
 ---
 
 ## 📖 Скачать книгу
-
-**[📄 Скачать PDF A4 (последняя версия)](https://github.com/oisee/abap-deep-dive/releases/download/v0.1.0-b28/AAD-combined_20250721-v1.0-b28-a4.pdf)**
-
-*Книга также доступна в разделе [Releases](https://github.com/oisee/abap-deep-dive/releases)*
+*Текущая сборка книги доступна в разделе [Releases](https://github.com/oisee/abap-deep-dive/releases)*
 
 ## О проекте
 

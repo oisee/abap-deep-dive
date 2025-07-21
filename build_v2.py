@@ -398,15 +398,40 @@ toc-depth: 3
         ]
         
         print(f"\n📄 Building PDF...")
+        print("  This may take several minutes due to the large number of diagrams...")
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            # Add timeout of 10 minutes for large documents
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
             if result.returncode == 0:
                 print(f"✅ PDF created: {output_file}")
                 return output_file
             else:
                 print(f"❌ PDF build failed:")
                 print(result.stderr)
-                return None
+                
+                # Try simpler PDF generation without some options
+                print("\n🔄 Trying with simpler options...")
+                simple_cmd = [
+                    'pandoc',
+                    input_file,
+                    '--pdf-engine=pdflatex',
+                    '-V', 'geometry:margin=2.5cm',
+                    '--toc',
+                    '--resource-path=.:build:build/diagrams',
+                    '-o', output_file
+                ]
+                result = subprocess.run(simple_cmd, capture_output=True, text=True, timeout=300)
+                if result.returncode == 0:
+                    print(f"✅ PDF created with simpler options: {output_file}")
+                    return output_file
+                else:
+                    print(f"❌ Simpler PDF build also failed")
+                    print(result.stderr)
+                    return None
+        except subprocess.TimeoutExpired:
+            print(f"❌ PDF build timed out after 10 minutes")
+            print("  The document may be too large. Try building individual chapters.")
+            return None
         except Exception as e:
             print(f"❌ Error building PDF: {e}")
             return None

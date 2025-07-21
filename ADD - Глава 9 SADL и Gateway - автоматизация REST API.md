@@ -19,7 +19,7 @@ graph LR
         subgraph "Gateway Server Components"
             subgraph "Frontend Server (FES)"
                 ICF[Internet Communication Framework]
-                HANDLER[HTTP Handler /sap/opu/odata/*]
+                HANDLER["HTTP Handler /sap/opu/odata/*"]
                 CACHE[Metadata Cache]
                 AUTH[Authentication]
             end
@@ -380,8 +380,8 @@ graph TB
         end
         
         subgraph "Consumption"
-            META[/$metadata]
-            DATA[/EntitySet]
+            META["/$metadata"]
+            DATA["/EntitySet"]
         end
         
         DEV --> ANNO
@@ -837,9 +837,9 @@ ENDCLASS.
 graph TB
     subgraph "Gateway Monitoring Tools"
         subgraph "Runtime Monitoring"
-            TRACE[/IWFND/TRACES<br/>Gateway Trace]
-            LOG[/IWFND/ERROR_LOG<br/>Error Log]
-            STATS[/IWFND/STATS<br/>Statistics]
+            TRACE["/IWFND/TRACES<br/>Gateway Trace"]
+            LOG["/IWFND/ERROR_LOG<br/>Error Log"]
+            STATS["/IWFND/STATS<br/>Statistics"]
         end
         
         subgraph "Performance Analysis"
@@ -849,9 +849,9 @@ graph TB
         end
         
         subgraph "Troubleshooting"
-            METADATA[/IWFND/MED_ACTIVATE<br/>Metadata Issues]
-            CACHE_CLEAN[/IWFND/CACHE_CLEANUP<br/>Cache Problems]
-            TEST[/IWFND/GW_CLIENT<br/>Test Client]
+            METADATA["/IWFND/MED_ACTIVATE<br/>Metadata Issues"]
+            CACHE_CLEAN["/IWFND/CACHE_CLEANUP<br/>Cache Problems"]
+            TEST["/IWFND/GW_CLIENT<br/>Test Client"]
         end
     end
     

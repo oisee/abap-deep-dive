@@ -175,16 +175,16 @@ graph TB
         end
         
         subgraph "Server (SAP)"
-            ICF_HANDLER[ICF Handler<br/>/sap/bc/adt/*]
+            ICF_HANDLER["ICF Handler<br/>/sap/bc/adt/*"]
             ADT_CORE[ADT Core Services]
             ABAP_REPO[ABAP Repository]
         end
         
         subgraph "REST Endpoints"
-            DISCOVERY[/sap/bc/adt/discovery]
-            REPO_EP[/sap/bc/adt/repository/*]
-            DEBUG_EP[/sap/bc/adt/debugger/*]
-            TRANSPORT_EP[/sap/bc/adt/cts/*]
+            DISCOVERY["/sap/bc/adt/discovery"]
+            REPO_EP["/sap/bc/adt/repository/*"]
+            DEBUG_EP["/sap/bc/adt/debugger/*"]
+            TRANSPORT_EP["/sap/bc/adt/cts/*"]
         end
         
         IDE --> ADT_PLUGIN
@@ -243,7 +243,7 @@ Message Server использует собственный протокол дл
 graph LR
     subgraph "Message Server Protocol"
         subgraph "MS Header"
-            FLAG[Flag: -10/-11/-12]
+            FLAG["Flag: -10/-11/-12"]
             OPCODE[Opcode]
             LENGTH[Message Length]
         end
@@ -328,7 +328,7 @@ graph TB
         end
         
         subgraph "Based on Standards"
-            HTTP_S[HTTP/HTTPS ✓✓]
+            HTTP_S["HTTP/HTTPS ✓✓"]
             SAML_S[SAML 2.0 ✓✓]
             OAUTH_S[OAuth 2.0 ✓✓]
         end

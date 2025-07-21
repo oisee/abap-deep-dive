@@ -810,8 +810,8 @@ graph TB
         end
         
         subgraph "Detail Analysis"
-            SMEM[/SDF/SMEM<br/>Memory Snapshot]
-            DPMON[dpmon<br/>Dispatcher Monitor]
+            SMEM[\"/SDF/SMEM<br/>Memory Snapshot\"]
+            DPMON[\"dpmon<br/>Dispatcher Monitor\"]
             SMLG[SMLG<br/>Logon Groups]
         end
         

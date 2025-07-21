@@ -372,8 +372,8 @@ graph TB
     SGEN --> TEST
     
     subgraph "File Operations"
-        OLD[/exe/uc/linuxx86_64/<br/>Old kernel files]
-        NEW[/exe/uc/linuxx86_64/<br/>New kernel files]
+        OLD["/exe/uc/linuxx86_64/<br/>Old kernel files"]
+        NEW["/exe/uc/linuxx86_64/<br/>New kernel files"]
         
         BACKUP -.backup.-> OLD
         EXTRACT -.replace.-> NEW
