@@ -124,20 +124,20 @@
 
 | Глава | Статус | Найдено проблем | Критических | TODO |
 |-------|--------|----------------|-------------|------|
-| 1. Анатомия SAP системы | ✅ Проверено | 15 | 3 | 22 |
-| 2. Ядро SAP | ✅ Проверено | 25 | 5 | 30 |
-| 3. Work Process | ✅ Проверено | 23 | 8 | 24 |
-| 4. Иерархия памяти | ✅ Проверено | 31 | 8 | 18 |
-| 5. ABAP Virtual Machine | ✅ Проверено | 35 | 12 | 26 |
-| 6. Database Interface | ✅ Проверено | 37 | 15 | 28 |
-| 7. От R/2 до S/4HANA | ✅ Проверено | 43 | 18 | 35 |
-| 7.1 Протоколы SAP | ✅ Проверено | 33 | 18 | 70 |
-| 8. SAP HANA | ✅ Проверено | 22 | 8 | 35 |
-| 9. SADL и Gateway | ✅ Проверено | 29 | 12 | 32 |
-| 10. От BOPF к RAP | ✅ Проверено | 105 | 25 | 147 |
-| 11. BTP и ABAP в облаке | ✅ Проверено | 47 | 15 | 147 |
-| 11.1 ABAP Daemons и Channels | ✅ Проверено | 28 | 15 | 52 |
-| 12. Инструменты анализа | ✅ Проверено | 36 | 10 | 147 |
+| 1. Анатомия SAP системы | ✅ Проверено | [15](factcheck/issues/FACTCHECK_Chapter_1.md) | 3 | [22](factcheck/todo/TODO_Chapter_1.md) |
+| 2. Ядро SAP | ✅ Проверено | [25](factcheck/issues/FACTCHECK_Chapter_2.md) | 5 | [30](factcheck/todo/TODO_Chapter_2.md) |
+| 3. Work Process | ✅ Проверено | [23](factcheck/issues/FACTCHECK_Chapter_3.md) | 8 | [24](factcheck/todo/TODO_Chapter_3.md) |
+| 4. Иерархия памяти | ✅ Проверено | [31](factcheck/issues/FACTCHECK_Chapter_4.md) | 8 | [18](factcheck/todo/TODO_Chapter_4.md) |
+| 5. ABAP Virtual Machine | ✅ Проверено | [35](factcheck/issues/FACTCHECK_Chapter_5.md) | 12 | [26](factcheck/todo/TODO_Chapter_5.md) |
+| 6. Database Interface | ✅ Проверено | [37](factcheck/issues/FACTCHECK_Chapter_6.md) | 15 | [28](factcheck/todo/TODO_Chapter_6.md) |
+| 7. От R/2 до S/4HANA | ✅ Проверено | [43](factcheck/issues/FACTCHECK_Chapter_7.md) | 18 | [35](factcheck/todo/TODO_Chapter_7.md) |
+| 7.1 Протоколы SAP | ✅ Проверено | [33](factcheck/issues/FACTCHECK_Chapter_7_Appendix.md) | 18 | [70](factcheck/todo/TODO_Chapter_7_Appendix.md) |
+| 8. SAP HANA | ✅ Проверено | [22](factcheck/issues/FACTCHECK_Chapter_8.md) | 8 | [35](factcheck/todo/TODO_Chapter_8.md) |
+| 9. SADL и Gateway | ✅ Проверено | [29](factcheck/issues/FACTCHECK_Chapter_9.md) | 12 | [32](factcheck/todo/TODO_Chapter_9.md) |
+| 10. От BOPF к RAP | ✅ Проверено | [105](factcheck/issues/FACTCHECK_Chapter_10.md) | 25 | [147](factcheck/todo/TODO_Chapter_10.md) |
+| 11. BTP и ABAP в облаке | ✅ Проверено | [47](factcheck/issues/FACTCHECK_Chapter_11.md) | 15 | [147](factcheck/todo/TODO_Chapter_11.md) |
+| 11.1 ABAP Daemons и Channels | ✅ Проверено | [28](factcheck/issues/FACTCHECK_Chapter_11_1.md) | 15 | [52](factcheck/todo/TODO_Chapter_11_1.md) |
+| 12. Инструменты анализа | ✅ Проверено | [36](factcheck/issues/FACTCHECK_Chapter_12.md) | 10 | [147](factcheck/todo/TODO_Chapter_12.md) |
 
 ### Последние обновления факт-чекинга
 
