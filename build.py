@@ -204,10 +204,9 @@ toc-depth: 3
             
             # Add title page with cover image if exists
             if os.path.exists('add-cover.png'):
-                outfile.write("\\begin{titlepage}\n")
-                outfile.write("\\centering\n")
-                outfile.write("\\includegraphics[width=\\textwidth]{add-cover.png}\n")
-                outfile.write("\\end{titlepage}\n\n")
+                # Use markdown image syntax instead of LaTeX
+                outfile.write("![](add-cover.png)\n\n")
+                outfile.write("\\newpage\n\n")
             
             # Write each chapter
             for chapter in CHAPTERS:
