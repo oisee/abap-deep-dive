@@ -1,0 +1,177 @@
+# Патч для важных исправлений Главы 6
+# Дата: 2025-07-21
+# Применить с помощью скрипта apply_patches.py
+
+## ВАЖНЫЕ ИСПРАВЛЕНИЯ
+
+### Исправление 16: Добавить описание SQL Cache
+- Файл: ADD - Глава 6 Database Interface - мост между ABAP и СУБД.md
+- Строка: после 150
+- Добавить:
+```
+## SQL Statement Cache
+
+Database Interface кеширует подготовленные SQL statements:
+
+1. **Prepared statements**: Повторное использование для идентичных запросов
+2. **Параметры кеша**:
+   - rsdb/stmtcache_size - размер кеша (по умолчанию 500)
+   - Статистика в ST04
+
+3. **Преимущества**:
+   - Избегание повторного parsing
+   - Снижение нагрузки на БД
+   - Улучшение response time
+```
+- Причина: Важный компонент не описан
+
+### Исправление 17: Добавить полный список интерфейсов ADBC
+- Файл: ADD - Глава 6 Database Interface - мост между ABAP и СУБД.md
+- Строка: после 570
+- Добавить:
+```
+### Полный набор классов ADBC
+
+- CL_SQL_CONNECTION - управление соединениями
+- CL_SQL_STATEMENT - выполнение SQL
+- CL_SQL_PREPARED_STATEMENT - prepared statements
+- CL_SQL_RESULT_SET - работа с результатами
+- CX_SQL_EXCEPTION - обработка ошибок
+
+### Пример с обработкой ошибок:
+```abap
+TRY.
+    DATA(lo_sql) = NEW cl_sql_statement( ).
+    DATA(lo_result) = lo_sql->execute_query( |SELECT * FROM { table }| ).
+  CATCH cx_sql_exception INTO DATA(lx_sql).
+    MESSAGE lx_sql->get_text( ) TYPE 'E'.
+ENDTRY.
+```
+```
+- Причина: Неполное описание ADBC
+
+### Исправление 18: Добавить описание FOR ALL ENTRIES оптимизаций
+- Файл: ADD - Глава 6 Database Interface - мост между ABAP и СУБД.md
+- Строка: после 300
+- Добавить:
+```
+### Оптимизация FOR ALL ENTRIES
+
+1. **Внутренняя реализация**:
+   - Преобразуется в серию IN условий
+   - Или в JOIN с временной таблицей
+
+2. **Параметры оптимизации**:
+   - rsdb/max_in_blocking_factor - макс. элементов в IN (по умолчанию 2000)
+   - rsdb/prefer_join - предпочтение JOIN вместо IN
+
+3. **Best practices**:
+   - Удалить дубликаты из driver таблицы
+   - Проверить что driver таблица не пустая
+   - Использовать только необходимые поля в WHERE
+```
+- Причина: Критически важная оптимизация не описана
+
+### Исправление 19: Добавить описание Table Statistics
+- Файл: ADD - Глава 6 Database Interface - мост между ABAP и СУБД.md
+- Строка: после 400
+- Добавить:
+```
+## Статистика таблиц для оптимизатора
+
+1. **Обновление статистики**:
+   - Транзакция DB20
+   - Автоматическое обновление по расписанию
+   - Влияет на планы выполнения
+
+2. **Критично для**:
+   - Больших таблиц
+   - После массовых изменений
+   - Таблиц с неравномерным распределением
+
+3. **Проблемы без статистики**:
+   - Неоптимальные планы выполнения
+   - Full table scans вместо index access
+```
+- Причина: Важный аспект производительности не описан
+
+### Исправление 20: Расширить примеры CDS views
+- Файл: ADD - Глава 6 Database Interface - мост между ABAP и СУБД.md
+- Строка: после 430
+- Добавить:
+```
+### Расширенные возможности CDS
+
+```sql
+@AbapCatalog.sqlViewName: 'ZCDS_ADVANCED'
+define view Z_Advanced_View as select from vbak
+  association [0..*] to vbap as _Items 
+    on $projection.vbeln = _Items.vbeln
+{
+  key vbeln,
+  erdat,
+  netwr,
+  
+  // Virtual elements
+  @ObjectModel.virtualElement: true
+  cast( '' as abap.char(10) ) as virtual_field,
+  
+  // Aggregations
+  @DefaultAggregation: #SUM
+  netwr as total_value,
+  
+  // Associations
+  _Items
+}
+```
+```
+- Причина: Современные возможности CDS не показаны
+
+### Исправление 21: Добавить транзакции мониторинга
+- Файл: ADD - Глава 6 Database Interface - мост между ABAP и СУБД.md
+- Строка: после 700
+- Добавить:
+```
+## Ключевые транзакции для Database Interface
+
+| Транзакция | Назначение |
+|------------|------------|
+| ST04 | Database Performance Monitor |
+| ST05 | SQL Trace |
+| STAD | Workload Statistics (SQL statements) |
+| DB02 | Tables and Indexes Monitor |
+| DB20 | Update Statistics |
+| DBACOCKPIT | DBA Cockpit |
+| ST12 | Combined trace (ABAP + SQL) |
+```
+- Причина: Отсутствуют инструменты мониторинга
+
+### Исправление 22: Добавить best practices
+- Файл: ADD - Глава 6 Database Interface - мост между ABAP и СУБД.md
+- Строка: в конце главы
+- Добавить:
+```
+## Best Practices для Database Interface
+
+### DO:
+✅ Используйте Open SQL где возможно
+✅ Выбирайте только нужные поля (не SELECT *)
+✅ Используйте индексы эффективно
+✅ Применяйте буферизацию для справочных таблиц
+✅ Используйте массовые операции (array fetch)
+
+### DON'T:
+❌ Избегайте SELECT в циклах
+❌ Не используйте Native SQL без крайней необходимости
+❌ Не игнорируйте клиентозависимость
+❌ Не делайте SELECT * для больших таблиц
+❌ Не забывайте про индексы при WHERE условиях
+
+### Золотые правила:
+1. Минимизируйте количество DB обращений
+2. Передавайте фильтрацию на уровень БД
+3. Используйте агрегации БД вместо ABAP
+4. Следите за статистикой таблиц
+5. Тестируйте с реальными объемами данных
+```
+- Причина: Отсутствуют практические рекомендации
