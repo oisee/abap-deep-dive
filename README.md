@@ -4,9 +4,9 @@
 
 ## 📖 Скачать книгу
 
-**[📄 Скачать PDF (последняя версия)](https://github.com/USERNAME/abap-deep-dive/releases/latest/download/ABAP_Deep_Dive.pdf)**
+**[📄 Скачать PDF (последняя версия)](https://github.com/oisee/abap-deep-dive/releases/latest/download/ABAP_Deep_Dive.pdf)**
 
-*Книга также доступна в разделе [Releases](https://github.com/USERNAME/abap-deep-dive/releases)*
+*Книга также доступна в разделе [Releases](https://github.com/oisee/abap-deep-dive/releases)*
 
 ## О проекте
 
@@ -106,7 +106,7 @@
 
 1. **Fork репозитория**
    ```bash
-   git clone https://github.com/USERNAME/abap-deep-dive.git
+   git clone https://github.com/oisee/abap-deep-dive.git
    cd abap-deep-dive
    ```
 
