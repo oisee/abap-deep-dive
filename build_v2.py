@@ -383,6 +383,7 @@ toc-depth: 3
         cmd = [
             'pandoc',
             input_file,
+            '-f', 'markdown+raw_tex',  # Enable raw LaTeX parsing
             '--pdf-engine=lualatex',
             '-V', 'geometry:margin=2.5cm',
             '-V', 'mainfont=DejaVu Sans',
