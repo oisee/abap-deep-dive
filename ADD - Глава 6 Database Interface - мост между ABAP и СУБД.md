@@ -25,9 +25,9 @@ graph TB
             
             subgraph "Buffer Management"
                 BUFFER_MGR[Buffer Manager]
-                TABLE_BUF[Table Buffer]
-                SINGLE_BUF[Single Record Buffer]
-                GENERIC_BUF[Generic Buffer]
+                TABLE_BUF[Full buffering -<br/>полная буферизация таблицы]
+                SINGLE_BUF[Single-record buffering -<br/>буферизация отдельных записей]
+                GENERIC_BUF[Generic buffering -<br/>буферизация по generic key]
             end
             
             subgraph "Connection Management"
@@ -43,19 +43,12 @@ graph TB
 3. **SQL Trace Layer**: ST05 трассировка
 4. **Cost-Based Optimizer Interface**: Статистика для оптимизатора БД
 5. **Compression Layer**: Сжатие данных при передаче
-### Дополнительные слои Database Interface:
-
-1. **SQL Cache**: Кеширование подготовленных statements
-2. **Authorization Layer**: Проверка полномочий на уровне таблиц
-3. **SQL Trace Layer**: ST05 трассировка
-4. **Cost-Based Optimizer Interface**: Статистика для оптимизатора БД
-5. **Compression Layer**: Сжатие данных при передаче
         
         subgraph "DB-Specific Libraries"
-            ORA_LIB[dboraslib.so<br/>Oracle Interface]
-            HANA_LIB[dbhdbslib.so<br/>HANA Interface]
-            DB2_LIB[dbdb2slib.so<br/>DB2 Interface]
-            MSS_LIB[dbmssslib.so<br/>SQL Server Interface]
+            ORA_LIB[# Unix/Linux:<br/>dboraslib.so<br/>Oracle Interface<br/># Windows:<br/>dboraslib.dll]
+            HANA_LIB[# Unix/Linux:<br/>dbhdbslib.so<br/>HANA Interface<br/># Windows:<br/>dbhdbslib.dll]
+            DB2_LIB[# Unix/Linux:<br/>dbdb6slib.so<br/>DB2 Interface<br/>(не dbdb2slib.so!)<br/># Windows:<br/>dbdb6slib.dll]
+            MSS_LIB[# Unix/Linux:<br/>dbmssslib.so<br/>SQL Server Interface<br/># Windows:<br/>dbmssslib.dll]
         end
         
         subgraph "Database Layer"
@@ -105,50 +98,34 @@ Database Interface реализован как часть work process и вкл
 
 ### Управление соединениями
 
-```mermaid
-sequenceDiagram
-    participant WP as Work Process
-    participant DBI as DB Interface
-    participant POOL as Connection Pool
-    participant LIB as DB Library
-    participant DB as Database
-    
-    WP->>DBI: SQL Request
-    DBI->>POOL: Get Connection
-    
-    alt Connection Available
-        POOL-->>DBI: Existing Connection
-    else No Free Connection
-        POOL->>LIB: Create New Connection
-        LIB->>DB: Connect
-        DB-->>LIB: Connection Handle
-        LIB-->>POOL: Connection Object
-        POOL-->>DBI: New Connection
-    end
-    
-    DBI->>LIB: Execute SQL
-    LIB->>DB: Native SQL
-    DB-->>LIB: Result Set
-    LIB-->>DBI: Result
-    
-    DBI->>POOL: Return Connection
-    POOL->>POOL: Mark as Available
-    
-    DBI-->>WP: Result
-```
+## Управление соединениями с БД
+
+### Стандартная модель
+- Каждый Work Process имеет ОДНО постоянное соединение с БД
+- Соединение создается при старте WP и сохраняется
+- Нет динамического пула соединений в классическом понимании
+
+### Параметры
+- Количество DB соединений = количество Work Processes
+- Исключение: параллельные операции могут создавать доп. соединения
+
+### Оптимизации
+- Connection multiplexing НЕ используется по умолчанию
+- Persistent connections для минимизации overhead
+- Автоматическое переподключение при разрыве
 
 Work Process поддерживает пул соединений для минимизации overhead при создании новых подключений. Параметры управления:
 
-- `rsdb/max_blocking_factor` - максимальное количество соединений на WP
-- `rsdb/max_in_blocking_factor` - максимальное количество входящих соединений
-- `rsdb/prefer_join_with_fda` - оптимизация для массовых операций
+- `dbs/io_buf_size` - размер I/O буфера
+- `rsdb/prefer_fix_blocking` - предпочтение фиксированной блокировки
+- `rsdb/prefer_in_update_task` - оптимизации для update task
+- `rsdb/max_blocking_factor` - максимальный фактор блокировки (корректный)
 
 ## 6.2. Open SQL и его трансляция
 
 Open SQL представляет собой подмножество стандарта SQL, адаптированное для нужд бизнес-приложений SAP. Ключевая особенность - автоматическое добавление клиента (MANDT) и других системных полей.
 
-### Процесс трансляции Open SQL
-## SQL Statement Cache
+### SQL Statement Cache
 
 Database Interface кеширует подготовленные SQL statements:
 
@@ -161,6 +138,8 @@ Database Interface кеширует подготовленные SQL statements:
    - Избегание повторного parsing
    - Снижение нагрузки на БД
    - Улучшение response time
+
+### Процесс трансляции Open SQL
 
 ```mermaid
 graph TB
@@ -168,19 +147,6 @@ graph TB
         subgraph "Input"
             ABAP[ABAP Code:<br/>SELECT * FROM vbak<br/>WHERE erdat = @sy-datum]
         end
-## SQL Statement Cache
-
-Database Interface кеширует подготовленные SQL statements:
-
-1. **Prepared statements**: Повторное использование для идентичных запросов
-2. **Параметры кеша**:
-   - rsdb/stmtcache_size - размер кеша (по умолчанию 500)
-   - Статистика в ST04
-
-3. **Преимущества**:
-   - Избегание повторного parsing
-   - Снижение нагрузки на БД
-   - Улучшение response time
         
         subgraph "Parsing"
             LEX[Lexical Analysis]
@@ -254,14 +220,6 @@ Database Interface кеширует подготовленные SQL statements:
     style ACCESS_PATH fill:#99ccff,stroke:#333,stroke-width:2px
 ```
 
-### Дополнительные возможности современного Open SQL:
-
-- UNION/UNION ALL для объединения результатов
-- Hierarchy functions для иерархических данных
-- Session variables для хранения промежуточных значений
-- Literals in SELECT list
-- Array operations для массовой обработки
-- Virtual elements в CDS views
 ### Особенности трансляции для разных СУБД
 
 Хотели бы увидеть примеры трансляции Open SQL для разных СУБД? Могу показать, как один и тот же Open SQL statement преобразуется для Oracle, HANA, DB2 и SQL Server с учетом их особенностей.
@@ -279,49 +237,9 @@ graph LR
         
         subgraph "DBI Processing"
             ADD_CLIENT[Add MANDT = SY-MANDT]
-### Детали обработки клиентов (MANDT)
-
-1. **Client-dependent таблицы** (большинство):
-   - Автоматически добавляется WHERE MANDT = SY-MANDT
-   - Поле MANDT - первое ключевое поле
-
-2. **Client-independent таблицы**:
-   - Технические таблицы без поля MANDT
-   - Доступны из всех клиентов
-
-3. **Безопасность**:
-   - Параметр auth/check_mandt контролирует проверки
-   - Cross-client запросы требуют специальных полномочий
-   - Клиент 000 имеет особый статус
-
-4. **CLIENT SPECIFIED**:
-   - Позволяет явно указать клиента
-   - Требует полномочия S_TABU_CLI
             CHECK_AUTH[Check Table Auth]
-### Оптимизация FOR ALL ENTRIES
-
-1. **Внутренняя реализация**:
-   - Преобразуется в серию IN условий
-   - Или в JOIN с временной таблицей
-
-2. **Параметры оптимизации**:
-   - rsdb/max_in_blocking_factor - макс. элементов в IN (по умолчанию 2000)
-   - rsdb/prefer_join - предпочтение JOIN вместо IN
-
-3. **Best practices**:
-   - Удалить дубликаты из driver таблицы
-   - Проверить что driver таблица не пустая
-   - Использовать только необходимые поля в WHERE
             VALIDATE[Validate Fields]
         end
-### Дополнительные возможности современного Open SQL:
-
-- UNION/UNION ALL для объединения результатов
-- Hierarchy functions для иерархических данных
-- Session variables для хранения промежуточных значений
-- Literals in SELECT list
-- Array operations для массовой обработки
-- Virtual elements в CDS views
         
         subgraph "Database View"
             REAL_SQL[SELECT * FROM KNA1<br/>WHERE MANDT = '100'<br/>AND KUNNR = '1000']
@@ -336,16 +254,49 @@ graph LR
     style ADD_CLIENT fill:#4CAF50,stroke:#333,stroke-width:2px
 ```
 
+### Оптимизация FOR ALL ENTRIES
+
+1. **Внутренняя реализация**:
+   - Преобразуется в серию IN условий
+   - Или в JOIN с временной таблицей
+
+2. **Параметры оптимизации**:
+   - rsdb/max_in_blocking_factor - макс. элементов в IN (по умолчанию 2000)
+   - rsdb/prefer_join - предпочтение JOIN вместо IN
+
+3. **Best practices**:
+   - Удалить дубликаты из driver таблицы
+   - Проверить что driver таблица не пустая
+   - Использовать только необходимые поля в WHERE
+
 ### Современные расширения Open SQL
 
-С NetWeaver 7.40 Open SQL получил множество современных возможностей:
+### Эволюция Open SQL по версиям:
 
+**NetWeaver 7.40**:
+- Inline declarations
+- CASE expressions (базовые)
+- Некоторые string функции
+
+**NetWeaver 7.50**:
 - CTE (Common Table Expressions)
 - Window Functions
-- Improved JOIN syntax
-- CASE expressions
-- String functions
-- Arithmetic expressions
+- Расширенные string функции
+- UNION/UNION ALL
+
+**NetWeaver 7.51+**:
+- Hierarchy functions
+- Session variables
+- JSON функции
+
+### Дополнительные возможности современного Open SQL:
+
+- UNION/UNION ALL для объединения результатов
+- Hierarchy functions для иерархических данных
+- Session variables для хранения промежуточных значений
+- Literals in SELECT list
+- Array operations для массовой обработки
+- Virtual elements в CDS views
 
 ### Host Variable Handling
 
@@ -618,9 +569,12 @@ sequenceDiagram
 
 Ключевые параметры для настройки буферов:
 
-- `zcsa/table_buffer_area` - размер области для table buffer
-- `zcsa/db_max_buftab` - максимальное количество буферизированных таблиц
-- `rsdb/ntab/entrycount` - количество записей в Nametab buffer
+- `zcsa/table_buffer_area` - размер области table buffer (KB)
+- `zcsa/db_max_buftab` - макс. количество буферизованных таблиц
+- `rsdb/ntab/entrycount` - количество записей в Nametab
+- `rsdb/obj/buffersize` - размер буфера объектов (KB)
+- `rsdb/obj/max_objects` - макс. количество объектов в буфере
+- `rsdb/obj/large_object_size` - порог для больших объектов
 ### Полный набор классов ADBC
 
 - CL_SQL_CONNECTION - управление соединениями
@@ -731,7 +685,7 @@ graph TB
         
         subgraph "HANA Layer"
             CATALOG[System Catalog]
-            PROC[Database Procedure<br/>_SYS_BIC schema]
+            PROC[Database Procedure<br/>в схеме ABAP системы<br/>(например, SAPABAP1),<br/>НЕ в _SYS_BIC]
             ENGINE[Calculation Engine]
             RESULT[Result Set]
         end
@@ -923,14 +877,14 @@ graph LR
             T2[Loop Processing]
             T3[Multiple Queries]
             T4[Return Result]
-            T_TIME[Total: 1000ms]
+            T_TIME[Total: зависит от сценария]
         end
         
         subgraph "AMDP Approach"
             A1[Call AMDP]
             A2[HANA Processing]
             A3[Return Result]
-            A_TIME[Total: 50ms]
+            A_TIME[Total: см. ниже]
         end
         
         subgraph "Performance Gain"
@@ -938,6 +892,13 @@ graph LR
             PARALLEL[Parallel<br/>Processing]
             MEMORY[In-Memory<br/>Speed]
             PUSHDOWN[Data stays<br/>in DB]
+        end
+        
+        subgraph "Пример улучшения производительности (зависит от сценария):"
+            SIMPLE[Простой SELECT: 10-50% улучшение]
+            COMPLEX[Сложные JOIN: 10x-100x улучшение]
+            ANALYTICS[Аналитические запросы: 100x-1000x улучшение]
+            WARNING[⚠️ Реальные результаты зависят от:<br/>- Объема данных<br/>- Сложности запроса<br/>- Сетевой задержки<br/>- Типа БД (HANA vs традиционные)]
         end
         
         T1 --> T2

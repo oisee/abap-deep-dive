@@ -31,7 +31,7 @@ graph TB
             end
         end
         
-        subgraph "Kernel Space (0x8000...)"
+        subgraph "Kernel Space (зависит от платформы, например 0xFFFF800000000000 для Linux x64)"
             KERNEL[OS Kernel<br/>Not accessible]
         end
     end
@@ -190,7 +190,7 @@ graph TB
 
 ```abap
 * Параметры Roll Area First
-* ztta/roll_first = 1 (default: 1 byte)
+* ztta/roll_first = 1024 (default: 1 KB)
 * Это заставляет систему сразу переходить к Extended Memory
 
 DATA: BEGIN OF ls_memory_usage,
@@ -210,7 +210,7 @@ Extended Memory — это основной пул памяти для поль�
 // Структура управления Extended Memory
 typedef struct {
     size_t total_size;         // em/initial_size_MB
-    size_t block_size;         // em/blocksize_KB (обычно 4096 KB)
+    size_t block_size;         // em/blocksize_KB (обычно 1024 KB, может быть увеличен до 4096 KB)
     size_t allocated_blocks;   // Количество выделенных блоков
     size_t free_blocks;        // Количество свободных блоков
     
@@ -369,7 +369,7 @@ stateDiagram-v2
 ```abap
 * Ключевые параметры для управления PRIV
 * abap/heap_area_dia     = 2000000000  " 2 GB heap для диалоговых WP
-* abap/heap_area_nondia  = 4000000000  " 4 GB heap для фоновых WP  
+* abap/heap_area_nondia  = 0  " 0 = неограниченно для фоновых WP (по умолчанию)  
 * abap/heaplimit         = 40000000    " 40 MB - порог рестарта WP
 * rdisp/wppriv_max_no    = 5           " Макс. число WP в PRIV
 * rdisp/max_priv_time    = 600         " 600 сек макс. время в PRIV
@@ -384,9 +384,11 @@ DATA: BEGIN OF ls_params,
         max_priv_time    TYPE i,
       END OF ls_params.
 
-* Чтение текущих значений параметров
-CALL 'C_SAPGPARAM' ID 'NAME'  FIELD 'abap/heap_area_dia'
-                   ID 'VALUE' FIELD ls_params-heap_area_dia.
+* Современный способ получения параметров
+DATA(lv_value) = cl_spfl_profile_parameter=>get_value( 
+  name = 'abap/heap_area_dia' ).
+ls_params-heap_area_dia = lv_value.
+* Альтернатива: FM SAPPARAM_GET_VALUE
 
 WRITE: / 'PRIV Mode Parameters:',
        / 'Dialog WP Heap Limit:', ls_params-heap_area_dia,
@@ -501,7 +503,7 @@ SAP использует множество разделяемых буферо�
 graph TB
     subgraph "SAP Shared Memory Buffers"
         subgraph "Program Execution"
-            PXA[Program Buffer PXA<br/>abap/buffersize]
+            PXA[Program Buffer PXA<br/>Размер вычисляется автоматически]
             CUA[Screen Buffer CUA<br/>sap/buffersize_cua]
             NTAB[Nametab Buffer<br/>zcsa/table_buffer_area]
         end
@@ -666,23 +668,16 @@ TYPES: BEGIN OF ty_buffer_stat,
 
 DATA: lt_buffer_stats TYPE TABLE OF ty_buffer_stat.
 
-* Получение статистики PXA
-CALL 'GET_BUFFER_INFO' ID 'BUFFER' FIELD 'PXA'
-                       ID 'SIZE'   FIELD DATA(lv_pxa_size)
-                       ID 'USED'   FIELD DATA(lv_pxa_used)
-                       ID 'HITS'   FIELD DATA(lv_pxa_hits)
-                       ID 'TOTAL'  FIELD DATA(lv_pxa_total).
+* Получение информации о буферах через системные таблицы
+* или транзакцию ST02
+* Прямого API для получения статистики буферов нет
+* Используйте класс CL_SHMM_UTILS для работы с shared memory
 
-DATA(lv_hit_ratio) = lv_pxa_hits / lv_pxa_total * 100.
-
-APPEND VALUE #( buffer_type = 'Program (PXA)'
-                size_kb     = lv_pxa_size
-                used_kb     = lv_pxa_used
-                hit_ratio   = lv_hit_ratio
-                efficiency  = COND #( WHEN lv_hit_ratio > 95 THEN 'GOOD'
-                                     WHEN lv_hit_ratio > 80 THEN 'FAIR'
-                                     ELSE 'POOR' )
-              ) TO lt_buffer_stats.
+* Пример использования ST02 данных
+* DATA: lt_st02_data TYPE TABLE OF st02_display.
+* CALL FUNCTION 'SAPWL_ST02_SNAPSHOT'
+*   TABLES
+*     st02_display = lt_st02_data.
 
 * Аналогично для других буферов...
 
@@ -698,7 +693,7 @@ cl_demo_output=>display( lt_buffer_stats ).
 graph TB
     subgraph "Memory Parameters Hierarchy"
         subgraph "Extended Memory"
-            EM_INIT[em/initial_size_MB<br/>Default: OS dependent]
+            EM_INIT[em/initial_size_MB<br/>Default: 16384 MB (16 GB) для современных систем]
             EM_BLOCK[em/blocksize_KB<br/>Default: 4096]
             EM_MAX[em/max_size_MB<br/>Growth limit]
         end

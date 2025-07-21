@@ -202,7 +202,7 @@ lv_result = t2   ; Присваивание результата
 ABAP Load - это бинарное представление скомпилированной программы:
 
 ```c
-// Структура ABAP Load в памяти
+// Концептуальная модель структуры ABAP Load (не реальная реализация)
 typedef struct {
 ### Поддержка отладки
 
@@ -462,6 +462,10 @@ graph TB
 ```
 
 ### Основной цикл выполнения
+
+**Важное замечание**: SAP не документирует внутренние опкоды ABAP VM публично. 
+Приведенные ниже примеры являются концептуальной моделью для понимания принципов работы.
+Реальные значения опкодов и их представление являются проприетарной информацией SAP.
 
 ```c
 // Упрощенный основной цикл ABAP VM
@@ -740,7 +744,7 @@ lv_result = lv_a + lv_b.
 WRITE: / 'Result:', lv_result.
 ```
 
-Примерный байт-код (псевдо-ассемблер):
+Концептуальное представление байт-кода (не реальный формат):
 
 ```assembly
 ; Инициализация программы
@@ -777,30 +781,13 @@ WRITE: / 'Result:', lv_result.
 Используя отладчик или специальные инструменты, можно увидеть реальный байт-код:
 
 ```abap
-* Программа для анализа байт-кода
-REPORT z_analyze_bytecode.
+* Прямого API для работы с компилятором не существует
+* Для динамической генерации кода используйте:
+GENERATE SUBROUTINE POOL source_code NAME prog_name.
 
-DATA: lo_program TYPE REF TO cl_abap_compiler.
-
-* Получение информации о скомпилированной программе
-TRY.
-    CREATE OBJECT lo_program
-      EXPORTING
-        p_name = 'Z_BYTECODE_EXAMPLE'.
-    
-    * Внутренний метод для получения байт-кода (недокументирован)
-    CALL METHOD lo_program->('GET_BYTECODE')
-      IMPORTING
-        e_bytecode = DATA(lt_bytecode).
-    
-    * Вывод байт-кода в hex формате
-    LOOP AT lt_bytecode INTO DATA(lv_byte).
-      WRITE: / sy-tabix, lv_byte.
-    ENDLOOP.
-    
-  CATCH cx_sy_create_object_error.
-    MESSAGE 'Cannot analyze bytecode' TYPE 'E'.
-ENDTRY.
+* Или для генерации отчетов:
+INSERT REPORT prog_name FROM source_table.
+GENERATE REPORT prog_name.
 ```
 
 ### Оптимизации на уровне байт-кода
@@ -1048,78 +1035,36 @@ PERFORM dynamic IN PROGRAM (prog).
 
 ### INSERT/GENERATE REPORT
 Для генерации полноценных программ.
-* Использование встроенного профилировщика VM
-DATA: lo_profiler TYPE REF TO if_abap_runtime_profiler.
 
-* Создание профилировщика
-lo_profiler = cl_abap_runtime_profiler=>create( 
-  p_type = cl_abap_runtime_profiler=>type_performance ).
+```abap
+* Для профилирования используйте транзакцию SAT
+* Программный доступ через класс CL_ABAP_TRACE:
 
-* Начало измерения
-lo_profiler->start( ).
+DATA: trace_ref TYPE REF TO cl_abap_trace.
 
-* Код для профилирования
-PERFORM heavy_calculation.
-
-* Остановка и анализ
-lo_profiler->stop( ).
-
-DATA(lt_measurements) = lo_profiler->get_measurements( ).
-
-* Вывод статистики по опкодам
-LOOP AT lt_measurements INTO DATA(ls_measure).
-  WRITE: / ls_measure-method_name,
-           ls_measure-gross_time,
-           ls_measure-net_time,
-           ls_measure-call_count.
-ENDLOOP.
+* Или используйте:
+SET RUN TIME ANALYZER ON.
+" Код для профилирования
+SET RUN TIME ANALYZER OFF.
 ```
 
-### Memory barriers и синхронизация
+## Синхронизация в многопоточной среде
 
-Для многопоточных сценариев VM обеспечивает memory barriers:
+ABAP VM обеспечивает потокобезопасность на уровне:
+- Изоляции пользовательских контекстов между Work Processes
+- Атомарных операций для shared objects (SHMA)
+- Enqueue/Dequeue механизма для бизнес-блокировок
 
-```c
-// Memory barrier инструкции в VM
-typedef enum {
-    MB_NONE = 0,        // Нет барьера
-    MB_ACQUIRE = 1,     // Acquire семантика
-    MB_RELEASE = 2,     // Release семантика  
-    MB_FULL = 3         // Full barrier
-} memory_barrier_t;
+Прямого доступа к low-level синхронизации нет.
 
-// Atomic операции в байт-коде
-void vm_atomic_add(vm_context_t* ctx) {
-    value_t* target = stack_pop_ref(ctx->stack);
-    value_t increment = stack_pop(ctx->stack);
-    
-    // Атомарное добавление с memory barrier
-    __atomic_fetch_add(&target->data.i, increment.data.i, 
-                       __ATOMIC_SEQ_CST);
-}
-```
+## Модель обработки исключений ABAP
 
-### Оптимизация exception handling
+ABAP использует традиционную модель с runtime проверками:
+- Проверка CATCH блоков при возникновении исключения
+- Раскрутка стека при поиске обработчика
+- Overhead при нормальном выполнении минимален
 
-```mermaid
-graph TB
-    subgraph "Exception Handling Optimization"
-        subgraph "Zero-Cost Try"
-            TRY[TRY Block<br/>No overhead<br/>in normal flow]
-            TABLE[Exception Table<br/>PC ranges -> handlers]
-            NORMAL[Normal Execution<br/>No checks]
-        end
-        
-        subgraph "Exception Path"
-            THROW[Exception Thrown]
-            UNWIND[Stack Unwinding]
-            LOOKUP[Handler Lookup<br/>in Exception Table]
-            HANDLER[Exception Handler]
-        end
-        
-        TRY --> NORMAL
-        NORMAL -.exception.-> THROW
-        THROW --> UNWIND
+Не используется zero-cost модель как в C++.
 ## Динамическая генерация кода
 
 ABAP поддерживает генерацию кода во время выполнения:
@@ -1139,16 +1084,13 @@ PERFORM dynamic IN PROGRAM (prog).
 
 ### INSERT/GENERATE REPORT
 Для генерации полноценных программ.
-        UNWIND --> LOOKUP
-        LOOKUP --> TABLE
-        TABLE --> HANDLER
-    end
-    
-    style NORMAL fill:#99ff99,stroke:#333,stroke-width:2px
-    style THROW fill:#ff9999,stroke:#333,stroke-width:2px
-```
 
-### Современные оптимизации для HANA
+### Оптимизации по версиям SAP NetWeaver
+
+- Loop optimizations: с версии 7.40
+- Code pushdown: с версии 7.40 SP05
+- String sharing: с версии 7.02, улучшено в 7.40
+- Parallel cursor: с версии 7.31
 
 ```abap
 * Code pushdown оптимизации
