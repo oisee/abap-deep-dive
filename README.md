@@ -237,8 +237,11 @@ make install-deps
 # Сборка PDF версии
 make pdf
 
-# Сборка PDF с диаграммами в виде PNG
-make pdf-png
+# Сборка PDF с диаграммами в виде PDF, A4
+make pdf-pdf 
+
+# Сборка PDF с диаграммами в виде PDF, A5
+make pdf-pdf-a5
 
 # Сборка всех форматов
 make all

@@ -453,6 +453,64 @@ header-includes: |
             print(f"❌ Error building PDF: {e}")
             return None
     
+    def build_pdf_a5(self, input_file):
+        """Build PDF in A5 format using pandoc"""
+        output_file = os.path.join(OUTPUT_DIR, f"ABAP_Deep_Dive_{self.version_string}_A5.pdf")
+        
+        # Create header file for LaTeX customizations
+        header_file = os.path.join(OUTPUT_DIR, 'header_a5.tex')
+        with open(header_file, 'w') as f:
+            f.write(r"\pagenumbering{arabic}" + "\n")
+            f.write(r"\renewcommand{\thepage}{\arabic{page}}" + "\n")
+            # Оптимизация для A5 формата
+            f.write(r"\usepackage{microtype}" + "\n")  # Улучшенная типографика
+            f.write(r"\setlength{\parindent}{1em}" + "\n")  # Отступ первой строки
+        
+        cmd = [
+            'pandoc',
+            input_file,
+            '-f', 'markdown+raw_tex',  # Enable raw LaTeX parsing
+            '--pdf-engine=lualatex',
+            '--metadata', f'title={BOOK_TITLE}',
+            '--metadata', f'author={AUTHOR}',
+            '--metadata', f'date={datetime.now().strftime("%B %Y")}',
+            '--metadata', 'lang=ru-RU',
+            '-V', 'papersize=a5',  # A5 формат
+            '-V', 'geometry:margin=1.5cm',  # Меньшие поля для A5
+            '-V', 'mainfont=DejaVu Sans',
+            '-V', 'monofont=DejaVu Sans Mono',
+            '-V', 'fontsize=10pt',  # Меньший шрифт для A5
+            '-V', 'documentclass=book',
+            '-V', 'fontenc=T1',
+            '-V', 'inputenc=utf8',
+            '-V', 'pagestyle=plain',
+            '--include-in-header', header_file,
+            '--toc',
+            '--toc-depth=3',
+            '--highlight-style=tango',
+            '--resource-path=.:build:build/diagrams',
+            '-o', output_file
+        ]
+        
+        print(f"\n📱 Building PDF in A5 format...")
+        print("  Optimized for tablets and e-readers...")
+        try:
+            # Add timeout of 10 minutes for large documents
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            if result.returncode == 0:
+                print(f"✅ PDF (A5) created: {output_file}")
+                return output_file
+            else:
+                print(f"❌ PDF (A5) build failed:")
+                print(result.stderr)
+                return None
+        except subprocess.TimeoutExpired:
+            print(f"❌ PDF (A5) build timed out after 10 minutes")
+            return None
+        except Exception as e:
+            print(f"❌ Error building PDF (A5): {e}")
+            return None
+    
     def build_epub(self, input_file):
         """Build EPUB using pandoc"""
         output_file = os.path.join(OUTPUT_DIR, f"ABAP_Deep_Dive_{self.version_string}.epub")
@@ -528,6 +586,9 @@ header-includes: |
         if 'pdf' in formats:
             results['pdf'] = self.build_pdf(combined_file)
         
+        if 'pdf-a5' in formats:
+            results['pdf-a5'] = self.build_pdf_a5(combined_file)
+        
         if 'epub' in formats:
             results['epub'] = self.build_epub(combined_file)
         
@@ -551,6 +612,7 @@ def main():
     
     parser = argparse.ArgumentParser(description='Build ABAP Deep Dive book v2')
     parser.add_argument('--pdf', action='store_true', help='Build PDF version')
+    parser.add_argument('--pdf-a5', action='store_true', help='Build PDF version in A5 format')
     parser.add_argument('--epub', action='store_true', help='Build EPUB version')
     parser.add_argument('--all', action='store_true', help='Build all formats')
     parser.add_argument('--increment-major', action='store_true', help='Increment major version')
@@ -573,11 +635,13 @@ def main():
     
     # Determine formats to build
     formats = []
-    if args.all or (not args.pdf and not args.epub):
+    if args.all or (not args.pdf and not args.pdf_a5 and not args.epub):
         formats = ['pdf', 'epub']
     else:
         if args.pdf:
             formats.append('pdf')
+        if args.pdf_a5:
+            formats.append('pdf-a5')
         if args.epub:
             formats.append('epub')
     

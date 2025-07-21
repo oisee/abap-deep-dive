@@ -25,6 +25,11 @@ pdf-pdf:
 	@echo "📄 Building PDF version with PDF diagrams (vector graphics)..."
 	@python3 build_v2.py --pdf --diagram-format=pdf
 
+# Build PDF in A5 format with PDF diagrams
+pdf-pdf-a5:
+	@echo "📱 Building PDF version in A5 format with PDF diagrams..."
+	@python3 build_v2.py --pdf-a5 --diagram-format=pdf
+
 # Build EPUB version  
 epub:
 	@echo "📱 Building EPUB version..."
@@ -86,6 +91,7 @@ help:
 	@echo "Available targets:"
 	@echo "  make all          - Build both PDF and EPUB versions"
 	@echo "  make pdf          - Build only PDF version"
+	@echo "  make pdf-pdf-a5   - Build PDF in A5 format with vector diagrams"
 	@echo "  make epub         - Build only EPUB version"
 	@echo "  make clean        - Remove build artifacts"
 	@echo "  make install-deps - Install required dependencies"
