@@ -18,7 +18,12 @@ pdf-svg:
 # Build PDF with PNG diagrams
 pdf-png:
 	@echo "📄 Building PDF version with PNG diagrams..."
-	@python3 build_v2.py --pdf
+	@python3 build_v2.py --pdf --diagram-format=png
+
+# Build PDF with PDF diagrams
+pdf-pdf:
+	@echo "📄 Building PDF version with PDF diagrams (vector graphics)..."
+	@python3 build_v2.py --pdf --diagram-format=pdf
 
 # Build EPUB version  
 epub:

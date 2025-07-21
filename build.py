@@ -152,7 +152,45 @@ toc-depth: 3
         
         content = re.sub(r'```{\.mermaid}\n(.*?)\n```', comment_mermaid, content, flags=re.DOTALL)
         
-        return content
+        # Replace problematic Unicode characters in headers with text equivalents
+        # This helps with PDF rendering issues
+        unicode_replacements = {
+            '✅': '[OK]',
+            '❌': '[X]',
+            '⚠️': '[!]',
+            '📚': '[BOOK]',
+            '🔍': '[SEARCH]',
+            '💡': '[IDEA]',
+            '🎯': '[TARGET]',
+            '🚀': '[ROCKET]',
+            '⚡': '[LIGHTNING]',
+            '🔧': '[WRENCH]',
+            '📊': '[CHART]',
+            '🏗️': '[BUILDING]',
+            '🔄': '[CYCLE]',
+            '📝': '[MEMO]',
+            '🎨': '[ART]',
+            '🌟': '[STAR]',
+            '💾': '[DISK]',
+            '🔗': '[LINK]',
+            '🔨': '[HAMMER]',
+            '📄': '[PAGE]',
+            '📱': '[PHONE]',
+            '🧹': '[BROOM]',
+            '📦': '[PACKAGE]',
+            '⬆️': '[UP]',
+            '📋': '[CLIPBOARD]'
+        }
+        
+        # Apply replacements only in headers (lines starting with #)
+        lines = content.split('\n')
+        for i, line in enumerate(lines):
+            if line.strip().startswith('#'):
+                for emoji, replacement in unicode_replacements.items():
+                    line = line.replace(emoji, replacement)
+                lines[i] = line
+        
+        return '\n'.join(lines)
     
     def combine_chapters(self):
         """Combine all chapters into a single markdown file"""
@@ -163,6 +201,13 @@ toc-depth: 3
             with open(METADATA_FILE, 'r') as f:
                 outfile.write(f.read())
             outfile.write("\n\\newpage\n\n")
+            
+            # Add title page with cover image if exists
+            if os.path.exists('add-cover.png'):
+                outfile.write("\\begin{titlepage}\n")
+                outfile.write("\\centering\n")
+                outfile.write("\\includegraphics[width=\\textwidth]{add-cover.png}\n")
+                outfile.write("\\end{titlepage}\n\n")
             
             # Write each chapter
             for chapter in CHAPTERS:

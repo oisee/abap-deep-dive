@@ -47,8 +47,9 @@ CHAPTERS = [
 class MermaidProcessor:
     """Handles extraction and rendering of Mermaid diagrams"""
     
-    def __init__(self, diagrams_dir):
+    def __init__(self, diagrams_dir, output_format='png'):
         self.diagrams_dir = diagrams_dir
+        self.output_format = output_format
         os.makedirs(diagrams_dir, exist_ok=True)
         self.diagram_counter = 0
         
@@ -64,12 +65,45 @@ class MermaidProcessor:
         content_hash = hashlib.md5(mermaid_content.encode()).hexdigest()[:8]
         return f"diagram_{content_hash}"
     
-    def render_mermaid_to_svg(self, mermaid_content, output_path):
-        """Render mermaid diagram to PNG using mermaid CLI (mmdc)"""
+    def render_mermaid_to_svg(self, mermaid_content, output_path, output_format='png'):
+        """Render mermaid diagram to specified format using mermaid CLI (mmdc)"""
         try:
+            # Import re at the top of the method
+            import re
+            
+            # Preprocess mermaid content to handle special characters
+            lines = mermaid_content.split('\n')
+            processed_lines = []
+            for line in lines:
+                # Handle pipes in node labels
+                if '[' in line and ']' in line:
+                    # Find content within brackets
+                    def escape_special_chars_in_brackets(match):
+                        content = match.group(1)
+                        # Escape special characters
+                        content = content.replace('|', '&#124;')
+                        content = content.replace('(', '&#40;')
+                        content = content.replace(')', '&#41;')
+                        content = content.replace('"', '&quot;')
+                        # Handle <br/> tags - ensure they are lowercase
+                        content = content.replace('<BR/>', '<br/>')
+                        content = content.replace('<BR>', '<br/>')
+                        content = content.replace('<Br/>', '<br/>')
+                        return '[' + content + ']'
+                    
+                    line = re.sub(r'\[([^\]]+)\]', escape_special_chars_in_brackets, line)
+                
+                # Also handle quotes in node IDs (like STR1[String "ABC"])
+                if re.match(r'^\s*\w+\[.*".*"\]', line):
+                    line = re.sub(r'"([^"]+)"', r'&quot;\1&quot;', line)
+                    
+                processed_lines.append(line)
+            
+            processed_content = '\n'.join(processed_lines)
+            
             # Create temporary mermaid file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.mmd', delete=False) as f:
-                f.write(mermaid_content)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.mmd', delete=False, encoding='utf-8') as f:
+                f.write(processed_content)
                 temp_mmd = f.name
             
             # Check if mmdc (mermaid CLI) is available
@@ -79,18 +113,29 @@ class MermaidProcessor:
                 print("⚠️  mermaid CLI (mmdc) not found. Installing...")
                 subprocess.run(['npm', 'install', '-g', '@mermaid-js/mermaid-cli'], check=True)
             
-            # Render directly to PNG for better compatibility
-            png_path = output_path.replace('.svg', '.png')
-            cmd = [
-                'mmdc',
-                '-i', temp_mmd,
-                '-o', png_path,
-                '-t', 'default',
-                '-b', 'white',
-                '--width', '1600',
-                '--height', '1200',
-                '--scale', '2'
-            ]
+            # Determine output path based on format
+            if output_format == 'pdf':
+                final_path = output_path.replace('.svg', '.pdf')
+                cmd = [
+                    'mmdc',
+                    '-i', temp_mmd,
+                    '-o', final_path,
+                    '-t', 'default',
+                    '-b', 'white',
+                    '--pdfFit'  # Fit to PDF page
+                ]
+            else:  # PNG by default
+                final_path = output_path.replace('.svg', '.png')
+                cmd = [
+                    'mmdc',
+                    '-i', temp_mmd,
+                    '-o', final_path,
+                    '-t', 'default',
+                    '-b', 'white',
+                    '--width', '1600',
+                    '--height', '1200',
+                    '--scale', '2'
+                ]
             
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode != 0:
@@ -121,35 +166,40 @@ class MermaidProcessor:
             diagram_id = self.generate_diagram_id(diagram_content)
             svg_filename = f"{diagram_id}.svg"
             svg_path = os.path.join(self.diagrams_dir, svg_filename)
-            png_filename = f"{diagram_id}.png"
-            png_path = os.path.join(self.diagrams_dir, png_filename)
+            
+            # Determine output filename based on format
+            if self.output_format == 'pdf':
+                output_filename = f"{diagram_id}.pdf"
+                output_path = os.path.join(self.diagrams_dir, output_filename)
+            else:
+                output_filename = f"{diagram_id}.png"
+                output_path = os.path.join(self.diagrams_dir, output_filename)
             
             # Render diagram if not already exists
-            if not os.path.exists(png_path):
+            if not os.path.exists(output_path):
                 print(f"    - Rendering diagram {self.diagram_counter}: {diagram_id}")
-                if self.render_mermaid_to_svg(diagram_content, svg_path):
-                    print(f"      ✓ Saved as {png_filename}")
+                if self.render_mermaid_to_svg(diagram_content, svg_path, self.output_format):
+                    print(f"      ✓ Saved as {output_filename}")
                 else:
                     print(f"      ✗ Failed to render, keeping as code block")
                     continue
             else:
-                print(f"    - Using cached diagram: {png_filename}")
+                print(f"    - Using cached diagram: {output_filename}")
             
             # Replace mermaid block with image reference
-            # Use PNG for better compatibility
-            png_filename = svg_filename.replace('.svg', '.png')
-            relative_png_path = f"diagrams/{png_filename}"
-            img_tag = f'![Diagram {self.diagram_counter}]({relative_png_path})'
+            relative_path = f"diagrams/{output_filename}"
+            img_tag = f'![Diagram {self.diagram_counter}]({relative_path})'
             content = content[:match.start()] + img_tag + content[match.end():]
         
         return content
 
 class BookBuilder:
-    def __init__(self):
+    def __init__(self, diagram_format='png'):
         self.version_info = self.load_version()
         self.build_number = self.version_info['build_number']
         self.version_string = self.get_version_string()
-        self.mermaid_processor = MermaidProcessor(DIAGRAMS_DIR)
+        self.diagram_format = diagram_format
+        self.mermaid_processor = MermaidProcessor(DIAGRAMS_DIR, diagram_format)
         
     def load_version(self):
         """Load or create version info"""
@@ -242,7 +292,46 @@ toc-depth: 3
         """Preprocess markdown content for better PDF rendering"""
         # Fix image references to use relative paths
         content = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', r'![\1](\2)', content)
-        return content
+        
+        # Replace problematic Unicode characters in headers with text equivalents
+        # This helps with PDF rendering issues
+        unicode_replacements = {
+            '✅': '[OK]',
+            '❌': '[X]',
+            '⚠️': '[!]',
+            '📚': '[BOOK]',
+            '🔍': '[SEARCH]',
+            '💡': '[IDEA]',
+            '🎯': '[TARGET]',
+            '🚀': '[ROCKET]',
+            '⚡': '[LIGHTNING]',
+            '🔧': '[WRENCH]',
+            '📊': '[CHART]',
+            '🏗️': '[BUILDING]',
+            '🔄': '[CYCLE]',
+            '📝': '[MEMO]',
+            '🎨': '[ART]',
+            '🌟': '[STAR]',
+            '💾': '[DISK]',
+            '🔗': '[LINK]',
+            '🔨': '[HAMMER]',
+            '📄': '[PAGE]',
+            '📱': '[PHONE]',
+            '🧹': '[BROOM]',
+            '📦': '[PACKAGE]',
+            '⬆️': '[UP]',
+            '📋': '[CLIPBOARD]'
+        }
+        
+        # Apply replacements only in headers (lines starting with #)
+        lines = content.split('\n')
+        for i, line in enumerate(lines):
+            if line.strip().startswith('#'):
+                for emoji, replacement in unicode_replacements.items():
+                    line = line.replace(emoji, replacement)
+                lines[i] = line
+        
+        return '\n'.join(lines)
     
     def process_chapter(self, chapter_path):
         """Process a single chapter: extract and render mermaid diagrams"""
@@ -268,6 +357,13 @@ toc-depth: 3
                 outfile.write(f.read())
             outfile.write("\n\\newpage\n\n")
             
+            # Add title page with cover image if exists
+            if os.path.exists('add-cover.png'):
+                outfile.write("\\begin{titlepage}\n")
+                outfile.write("\\centering\n")
+                outfile.write("\\includegraphics[width=\\textwidth]{add-cover.png}\n")
+                outfile.write("\\end{titlepage}\n\n")
+            
             # Process and write each chapter
             for chapter in CHAPTERS:
                 if os.path.exists(chapter):
@@ -291,6 +387,9 @@ toc-depth: 3
             '-V', 'geometry:margin=2.5cm',
             '-V', 'mainfont=DejaVu Sans',
             '-V', 'monofont=DejaVu Sans Mono',
+            '-V', 'documentclass=book',
+            '-V', 'fontenc=T1',
+            '-V', 'inputenc=utf8',
             '--toc',
             '--toc-depth=3',
             '--highlight-style=tango',
@@ -415,6 +514,8 @@ def main():
     parser.add_argument('--increment-major', action='store_true', help='Increment major version')
     parser.add_argument('--increment-minor', action='store_true', help='Increment minor version')
     parser.add_argument('--clean', action='store_true', help='Clean build artifacts')
+    parser.add_argument('--diagram-format', choices=['png', 'pdf'], default='png', 
+                        help='Format for diagrams (png or pdf)')
     
     args = parser.parse_args()
     
@@ -439,7 +540,7 @@ def main():
             formats.append('epub')
     
     # Build
-    builder = BookBuilder()
+    builder = BookBuilder(diagram_format=args.diagram_format)
     
     # Handle version increments
     if args.increment_major:

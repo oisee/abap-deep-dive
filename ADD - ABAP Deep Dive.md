@@ -1,6 +1,3 @@
-
-![ABAP Deep Dive Cover](add-cover.png)
-
 ## Table of Contents
 
 **Часть I: Фундаментальная архитектура**
