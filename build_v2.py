@@ -359,10 +359,12 @@ toc-depth: 3
             
             # Add title page with cover image if exists
             if os.path.exists('add-cover.png'):
-                outfile.write("\\begin{titlepage}\n")
-                outfile.write("\\centering\n")
-                outfile.write("\\includegraphics[width=\\textwidth]{add-cover.png}\n")
-                outfile.write("\\end{titlepage}\n\n")
+                # Copy cover to build directory
+                shutil.copy('add-cover.png', os.path.join(OUTPUT_DIR, 'add-cover.png'))
+                
+                # Use markdown image syntax for better compatibility
+                outfile.write("![](add-cover.png)\n\n")
+                outfile.write("\\newpage\n\n")
             
             # Process and write each chapter
             for chapter in CHAPTERS:
@@ -394,7 +396,7 @@ toc-depth: 3
             '--toc',
             '--toc-depth=3',
             '--highlight-style=tango',
-            '--resource-path=.:build:build/diagrams',  # Add diagrams directory to resource path
+            '--resource-path=.:build:build/diagrams',  # Add current dir, build dir and diagrams to resource path
             '-o', output_file
         ]
         
@@ -455,7 +457,7 @@ toc-depth: 3
             '--toc-depth=3',
             '--epub-chapter-level=2',
             '--highlight-style=tango',
-            '--resource-path=.:build:build/diagrams',  # Add diagrams directory to resource path
+            '--resource-path=.:build:build/diagrams',  # Add current dir, build dir and diagrams to resource path
             '-o', output_file
         ] + cover_option
         
