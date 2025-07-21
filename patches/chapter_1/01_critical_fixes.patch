@@ -1,0 +1,55 @@
+# Патч для критических исправлений Главы 1
+# Дата: 2025-07-21
+# Применить с помощью скрипта apply_patches.py
+
+## КРИТИЧЕСКИЕ ИСПРАВЛЕНИЯ
+
+### Исправление 1: SAP GUI - толстый клиент
+- Файл: ADD - Глава 1 Анатомия SAP системы.md
+- Строка: 39
+- Найти: "SAP GUI — тонкий клиент, реализующий протокол DIAG"
+- Заменить: "SAP GUI — толстый клиент (thick client), реализующий протокол DIAG"
+- Причина: SAP GUI требует локальной установки и содержит логику представления
+
+### Исправление 2: Добавить Windows версии процессов
+- Файл: ADD - Глава 1 Анатомия SAP системы.md
+- Строка: 144-150
+- Найти:
+```
+<sid>adm  12345  disp+work
+<sid>adm  12346  gwrd  
+<sid>adm  12347  icman
+<sid>adm  12348  ms.sap<SID>
+<sid>adm  12349  enserver
+```
+- Заменить:
+```
+Unix/Linux:
+<sid>adm  12345  disp+work
+<sid>adm  12346  gwrd
+<sid>adm  12347  ms.sap<SID>
+<sid>adm  12348  enserver
+
+Windows:
+<sid>adm  12345  disp+work.exe
+<sid>adm  12346  gwrd.exe
+<sid>adm  12347  msg_server.exe
+<sid>adm  12348  enserver.exe
+
+Примечание: ICM интегрирован в disp+work с NetWeaver 6.40
+```
+- Причина: Необходима кроссплатформенная точность
+
+### Исправление 3: ICM не отдельный процесс
+- Файл: ADD - Глава 1 Анатомия SAP системы.md
+- Строка: 147
+- Найти: "icman"
+- Удалить эту строку
+- Причина: ICM интегрирован в disp+work с NetWeaver 6.40
+
+### Исправление 4: ICM в диаграмме
+- Файл: ADD - Глава 1 Анатомия SAP системы.md
+- Строка: 198
+- В диаграмме найти: "ICM[icman<br/>Internet Communication Manager]"
+- Заменить: "ICM[Integrated in disp+work<br/>Internet Communication Manager]"
+- Причина: ICM не отдельный процесс

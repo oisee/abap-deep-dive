@@ -1,0 +1,92 @@
+# Патч для критических исправлений Главы 2
+# Дата: 2025-07-21
+# Применить с помощью скрипта apply_patches.py
+
+## КРИТИЧЕСКИЕ ИСПРАВЛЕНИЯ
+
+### Исправление 1: Добавить Windows исполняемые файлы
+- Файл: ADD - Глава 2 Ядро SAP - операционная система бизнес-приложений.md
+- Строка: 85-99
+- Найти:
+```
+├── disp+work           # Основной исполняемый файл (dispatcher + work process)
+├── gwrd                # SAP Gateway
+├── icman               # Internet Communication Manager
+├── ms.sap<SID>         # Message Server
+├── enserver            # Enqueue Server
+```
+- Заменить:
+```
+# Unix/Linux:
+├── disp+work           # Основной исполняемый файл (dispatcher + work process)
+├── gwrd                # SAP Gateway
+├── ms.sap<SID>         # Message Server
+├── enserver            # Enqueue Server
+├── enrepserver         # Enqueue Replication Server (для HA)
+
+# Windows:
+├── disp+work.exe       # Основной исполняемый файл
+├── gwrd.exe            # SAP Gateway
+├── msg_server.exe      # Message Server
+├── enserver.exe        # Enqueue Server
+├── enrepserver.exe     # Enqueue Replication Server (для HA)
+
+# Примечание: ICM интегрирован в disp+work с NetWeaver 6.40
+```
+- Причина: Отсутствие Windows версий и неверная информация об ICM
+
+### Исправление 2: Исправить пути для разных платформ
+- Файл: ADD - Глава 2 Ядро SAP - операционная система бизнес-приложений.md
+- Строка: 83-84
+- Найти:
+```
+/usr/sap/<SID>/SYS/exe/uc/<platform>/
+```
+- Заменить:
+```
+Unix/Linux: /usr/sap/<SID>/SYS/exe/uc/<platform>/
+Windows: <drive>:\usr\sap\<SID>\SYS\exe\uc\<platform>\
+
+Примеры значений <platform>:
+- linuxx86_64   # Linux x86-64
+- ntamd64       # Windows x64
+- rs6000_64     # AIX Power
+- sunx86_64     # Solaris x86-64
+```
+- Причина: Неполная информация о платформах
+
+### Исправление 3: Корректировка информации о разрядности
+- Файл: ADD - Глава 2 Ядро SAP - операционная система бизнес-приложений.md
+- Строка: 113
+- Найти: "bit: Разрядность (устарело, теперь только 64-bit)"
+- Заменить: "bit: Разрядность (32-битные версии больше не разрабатываются для новых релизов с NetWeaver 7.40, но поддерживаются для legacy систем)"
+- Причина: Неточное утверждение о поддержке 32-bit
+
+### Исправление 4: Исправить описание ICM
+- Файл: ADD - Глава 2 Ядро SAP - операционная система бизнес-приложений.md
+- Строка: 230
+- Найти: "ICM — это веб-сервер и клиент в составе ядра SAP"
+- Заменить: "ICM (Internet Communication Manager) — это интегрированный компонент disp+work начиная с NetWeaver 6.40, обрабатывающий HTTP(S), SMTP и другие интернет-протоколы. ICM не является отдельным процессом."
+- Причина: ICM не отдельный процесс с версии 6.40
+
+### Исправление 5: Добавить стандартные порты SAP
+- Файл: ADD - Глава 2 Ядро SAP - операционная система бизнес-приложений.md
+- Строка: 258-266
+- Найти:
+```
+icm/server_port_0 = PROT=HTTP,PORT=80
+icm/server_port_1 = PROT=HTTPS,PORT=443
+```
+- Заменить:
+```
+# Стандартная схема портов SAP: <prefix><NN>, где NN - номер инстанса
+icm/server_port_0 = PROT=HTTP,PORT=8000    # Стандарт: 80<NN>
+icm/server_port_1 = PROT=HTTPS,PORT=44300  # Стандарт: 443<NN>
+
+# Другие стандартные порты:
+# Message Server: 3600      # 36<NN>
+# Dispatcher:     3200      # 32<NN>  
+# Gateway:        3300      # 33<NN>
+# Enqueue Server: 3900      # 39<NN>
+```
+- Причина: Отсутствие информации о стандартных портах
