@@ -235,12 +235,6 @@ graph TB
             
             subgraph "Blocks"
                 B1[Block 1<br/>4 MB]
-### Важный параметр: em/address_space_MB
-
-Ограничивает общее адресное пространство для Extended Memory:
-- По умолчанию: 8192 MB (32-bit), не ограничено (64-bit)
-- Рекомендация: оставить по умолчанию для 64-bit систем
-- Для 32-bit: может потребоваться уменьшение при проблемах с адресным пространством
                 B2[Block 2<br/>4 MB]
                 B3[Block 3<br/>4 MB]
                 BN[Block N<br/>4 MB]
@@ -252,12 +246,6 @@ graph TB
             U2[User 2<br/>Quota: 2 GB<br/>Used: 1.5 GB]
             U3[User 3<br/>Quota: 2 GB<br/>Used: 200 MB]
         end
-### Важный параметр: em/address_space_MB
-
-Ограничивает общее адресное пространство для Extended Memory:
-- По умолчанию: 8192 MB (32-bit), не ограничено (64-bit)
-- Рекомендация: оставить по умолчанию для 64-bit систем
-- Для 32-bit: может потребоваться уменьшение при проблемах с адресным пространством
         
         B1 --> U1
         B2 --> U1
@@ -267,6 +255,13 @@ graph TB
     
     style TOTAL fill:#4CAF50,stroke:#333,stroke-width:2px
 ```
+
+### Важный параметр: em/address_space_MB
+
+Ограничивает общее адресное пространство для Extended Memory:
+- По умолчанию: 8192 MB (32-bit), не ограничено (64-bit)
+- Рекомендация: оставить по умолчанию для 64-bit систем
+- Для 32-bit: может потребоваться уменьшение при проблемах с адресным пространством
 
 #### Roll Area Rest
 
@@ -619,14 +614,6 @@ sequenceDiagram
     participant App1 as App Server 1
     participant Buffer1 as Local Buffer 1
     participant DB as Database
-### Режимы синхронизации буферов (rdisp/bufrefmode)
-
-1. **sendon,exeauto** (по умолчанию)
-   - Автоматическая синхронизация при изменениях
-   - Минимальная задержка
-
-2. **sendon,exeoff**
-   - Отправка уведомлений без автоматического обновления
    - Требует ручной синхронизации
 
 3. **sendoff,exeoff**
@@ -649,6 +636,15 @@ sequenceDiagram
     
     Note over Buffer1,Buffer2: Buffers synchronized<br/>Next read will fetch<br/>from database
 ```
+
+### Режимы синхронизации буферов (rdisp/bufrefmode)
+
+1. **sendon,exeauto** (по умолчанию)
+   - Автоматическая синхронизация при изменениях
+   - Минимальная задержка
+
+2. **sendon,exeoff**
+   - Отправка уведомлений без автоматического обновления
 
 ### Мониторинг буферов
 
@@ -865,8 +861,8 @@ graph TB
         end
         
         subgraph "Detail Analysis"
-            SMEM[\"/SDF/SMEM<br/>Memory Snapshot\"]
-            DPMON[\"dpmon<br/>Dispatcher Monitor\"]
+            SMEM[/SDF/SMEM<br/>Memory Snapshot]
+            DPMON[dpmon<br/>Dispatcher Monitor]
             SMLG[SMLG<br/>Logon Groups]
         end
         

@@ -33,24 +33,6 @@ graph TB
             PXA[Program Buffer<br/>Runtime Cache]
         end
         
-### Program eXecution Area (PXA)
-
-PXA - это shared memory область для кеширования скомпилированных программ:
-- Размер: автоматически вычисляется на основе доступной памяти
-- Параметр для мониторинга: abap/pxa_buffer_size (read-only)
-- Алгоритм вытеснения: LRU (Least Recently Used)
-- Статистика: транзакция ST02, раздел Program
-
-При заполнении PXA старые неиспользуемые программы выгружаются.
-### Program eXecution Area (PXA)
-
-PXA - это shared memory область для кеширования скомпилированных программ:
-- Размер: автоматически вычисляется на основе доступной памяти
-- Параметр для мониторинга: abap/pxa_buffer_size (read-only)
-- Алгоритм вытеснения: LRU (Least Recently Used)
-- Статистика: транзакция ST02, раздел Program
-
-При заполнении PXA старые неиспользуемые программы выгружаются.
         SRC --> SCANNER
         SCANNER --> PARSER
         PARSER --> SEMANTIC
@@ -60,14 +42,6 @@ PXA - это shared memory область для кеширования ском
         OPT --> CODEGEN
         CODEGEN --> BYTECODE
         CODEGEN --> METADATA
-### Дополнительные таблицы репозитория
-
-При компиляции также используются:
-- **CROSS**: Таблица перекрестных ссылок (where-used list)
-- **DYNPLOAD**: Скомпилированные экраны (dynpro)
-- **TEXTPOOL**: Текстовые элементы программы
-- **D010SINF**: Информация о экранах
-- **TRDIR**: Каталог программ и их атрибуты
         BYTECODE --> LOAD
         METADATA --> LOAD
         LOAD --> PXA
@@ -77,6 +51,17 @@ PXA - это shared memory область для кеширования ском
     style BYTECODE fill:#99ccff,stroke:#333,stroke-width:2px
     style PXA fill:#99ff99,stroke:#333,stroke-width:2px
 ```
+
+### Program eXecution Area (PXA)
+
+PXA - это shared memory область для кеширования скомпилированных программ:
+- Размер: автоматически вычисляется на основе доступной памяти
+- Параметр для мониторинга: abap/pxa_buffer_size (read-only)
+- Алгоритм вытеснения: LRU (Least Recently Used)
+- Статистика: транзакция ST02, раздел Program
+
+При заполнении PXA старые неиспользуемые программы выгружаются.
+
 ### Дополнительные таблицы репозитория
 
 При компиляции также используются:
@@ -178,6 +163,9 @@ ENDCLASS.
 ```
 
 ### Генерация промежуточного кода
+
+При компиляции генерируется промежуточное представление кода для оптимизации.
+
 ### Поддержка отладки
 
 Line table используется для:
@@ -190,7 +178,7 @@ Line table используется для:
 
 Перед генерацией байт-кода создается промежуточное представление:
 
-```
+```assembly
 ; Three-address code для выражения lv_result = 10 + 20 * 3
 t1 = 20 * 3      ; Временная переменная t1
 t2 = 10 + t1     ; Временная переменная t2  
@@ -307,16 +295,6 @@ graph TB
             LOCALS[Local Variables<br/>Method Frame]
             HEAP[VM Heap<br/>Objects & Tables]
             CONST[Constant Pool<br/>Literals]
-### Управление памятью и Garbage Collection
-
-ABAP использует reference counting для автоматического управления памятью:
-- Каждый объект имеет счетчик ссылок
-- При создании ссылки счетчик увеличивается
-- При удалении ссылки счетчик уменьшается
-- При достижении 0 объект удаляется
-
-Это отличается от mark-and-sweep GC в Java/.NET.
-Преимущество: предсказуемое время освобождения памяти.
         end
         
         subgraph "Runtime Support"
@@ -334,15 +312,6 @@ ABAP использует reference counting для автоматическог
         
         IP --> DECODER
         DECODER --> DISPATCHER
-### Размеры структур данных по платформам
-
-| Тип | 32-bit | 64-bit |
-|-----|--------|--------|
-| Pointer | 4 байта | 8 байт |
-| Integer | 4 байта | 4 байта |
-| Float | 8 байт | 8 байт |
-| Character | 2 байта (UTF-16) | 2 байта (UTF-16) |
-| Reference | 4 байта | 8 байт |
         DISPATCHER --> EXEC
         
         EXEC <--> STACK
@@ -363,6 +332,27 @@ ABAP использует reference counting для автоматическог
     style STACK fill:#99ccff,stroke:#333,stroke-width:2px
     style GC fill:#99ff99,stroke:#333,stroke-width:2px
 ```
+
+### Управление памятью и Garbage Collection
+
+ABAP использует reference counting для автоматического управления памятью:
+- Каждый объект имеет счетчик ссылок
+- При создании ссылки счетчик увеличивается
+- При удалении ссылки счетчик уменьшается
+- При достижении 0 объект удаляется
+
+Это отличается от mark-and-sweep GC в Java/.NET.
+Преимущество: предсказуемое время освобождения памяти.
+
+### Размеры структур данных по платформам
+
+| Тип | 32-bit | 64-bit |
+|-----|--------|--------|
+| Pointer | 4 байта | 8 байт |
+| Integer | 4 байта | 4 байта |
+| Float | 8 байт | 8 байт |
+| Character | 2 байта (UTF-16) | 2 байта (UTF-16) |
+| Reference | 4 байта | 8 байт |
 
 ### Stack-based архитектура
 
@@ -433,16 +423,6 @@ graph TB
         end
         
         subgraph "Step 5: MUL"
-### Структура фрейма вызова (Call Frame)
-
-Каждый вызов метода/функции создает фрейм:
-1. **Return address** - адрес возврата в байт-коде
-2. **Local variables** - локальные переменные
-3. **Parameters** - входные параметры
-4. **Temporary values** - промежуточные результаты
-5. **Exception handler** - ссылка на обработчик исключений
-
-Фреймы организованы в стек вызовов (call stack).
             S5_1[60]
             S5_2[10]
         end
@@ -460,6 +440,17 @@ graph TB
     
     style S6_1 fill:#99ff99,stroke:#333,stroke-width:2px
 ```
+
+### Структура фрейма вызова (Call Frame)
+
+Каждый вызов метода/функции создает фрейм:
+1. **Return address** - адрес возврата в байт-коде
+2. **Local variables** - локальные переменные
+3. **Parameters** - входные параметры
+4. **Temporary values** - промежуточные результаты
+5. **Exception handler** - ссылка на обработчик исключений
+
+Фреймы организованы в стек вызовов (call stack).
 
 ### Основной цикл выполнения
 
@@ -573,10 +564,11 @@ graph TB
     
     style YOUNG fill:#99ff99,stroke:#333,stroke-width:2px
     style OLD fill:#ffff99,stroke:#333,stroke-width:2px
+```
+
 **Важное замечание**: SAP не документирует внутренние опкоды ABAP VM публично. 
 Приведенные ниже примеры являются концептуальной моделью для понимания принципов работы.
-Реальные значения опкодов и их представление являются проприетарной информацией SAP.
-```
+Реальные значения опкодов и их представение являются проприетарной информацией SAP.
 
 ### Type System и динамическая типизация
 
@@ -711,6 +703,15 @@ graph TB
         subgraph "Special"
             CHECK_AUTH[CHECK_AUTH<br/>Authorization]
             DB_SELECT[DB_SELECT<br/>Database access]
+            RAISE[RAISE<br/>Exception]
+        end
+    end
+    
+    style LOAD fill:#99ccff,stroke:#333,stroke-width:2px
+    style CALL fill:#ff9999,stroke:#333,stroke-width:2px
+    style DB_SELECT fill:#99ff99,stroke:#333,stroke-width:2px
+```
+
 ### Встроенные проверки безопасности
 
 ABAP VM автоматически выполняет:
@@ -720,14 +721,6 @@ ABAP VM автоматически выполняет:
 - Валидацию параметров для предотвращения injection
 
 Эти проверки встроены в runtime и не могут быть отключены.
-            RAISE[RAISE<br/>Exception]
-        end
-    end
-    
-    style LOAD fill:#99ccff,stroke:#333,stroke-width:2px
-    style CALL fill:#ff9999,stroke:#333,stroke-width:2px
-    style DB_SELECT fill:#99ff99,stroke:#333,stroke-width:2px
-```
 
 ### Пример дизассемблирования
 
@@ -861,11 +854,6 @@ graph TB
         subgraph "First Call"
             CALL1[Dynamic Call Site]
             LOOKUP1[Method Lookup]
-**Условия применения**:
-- Только для DO циклов с константным числом итераций
-- Количество итераций < 10
-- Тело цикла не содержит вызовов методов
-- Нет выходов из цикла (EXIT, RETURN)
             CACHE1[Empty Cache]
             METHOD1[Target Method]
             
@@ -900,6 +888,12 @@ graph TB
     style CACHE2 fill:#99ff99,stroke:#333,stroke-width:2px
     style METHOD2 fill:#99ff99,stroke:#333,stroke-width:2px
 ```
+
+**Условия применения**:
+- Только для DO циклов с константным числом итераций
+- Количество итераций < 10
+- Тело цикла не содержит вызовов методов
+- Нет выходов из цикла (EXIT, RETURN)
 
 ### Оптимизация работы с внутренними таблицами
 

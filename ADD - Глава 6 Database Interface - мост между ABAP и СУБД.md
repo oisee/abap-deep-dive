@@ -36,13 +36,6 @@ graph TB
                 TRANS_MGR[Transaction Manager]
             end
         end
-### Дополнительные слои Database Interface:
-
-1. **SQL Cache**: Кеширование подготовленных statements
-2. **Authorization Layer**: Проверка полномочий на уровне таблиц
-3. **SQL Trace Layer**: ST05 трассировка
-4. **Cost-Based Optimizer Interface**: Статистика для оптимизатора БД
-5. **Compression Layer**: Сжатие данных при передаче
         
         subgraph "DB-Specific Libraries"
             ORA_LIB[# Unix/Linux:<br/>dboraslib.so<br/>Oracle Interface<br/># Windows:<br/>dboraslib.dll]
@@ -84,6 +77,14 @@ graph TB
     style TRANSLATOR fill:#99ccff,stroke:#333,stroke-width:2px
     style CONN_POOL fill:#99ff99,stroke:#333,stroke-width:2px
 ```
+
+### Дополнительные слои Database Interface:
+
+1. **SQL Cache**: Кеширование подготовленных statements
+2. **Authorization Layer**: Проверка полномочий на уровне таблиц
+3. **SQL Trace Layer**: ST05 трассировка
+4. **Cost-Based Optimizer Interface**: Статистика для оптимизатора БД
+5. **Compression Layer**: Сжатие данных при передаче
 
 ### Внутренняя структура DB Interface
 
@@ -199,6 +200,9 @@ graph TB
     end
     
     style BUFFER_CHECK fill:#ff9999,stroke:#333,stroke-width:2px
+    style ACCESS_PATH fill:#99ccff,stroke:#333,stroke-width:2px
+```
+
 ### Детали обработки клиентов (MANDT)
 
 1. **Client-dependent таблицы** (большинство):
@@ -217,8 +221,6 @@ graph TB
 4. **CLIENT SPECIFIED**:
    - Позволяет явно указать клиента
    - Требует полномочия S_TABU_CLI
-    style ACCESS_PATH fill:#99ccff,stroke:#333,stroke-width:2px
-```
 
 ### Особенности трансляции для разных СУБД
 
@@ -309,20 +311,6 @@ sequenceDiagram
     
     ABAP->>DBI: SELECT * FROM vbak<br/>WHERE kunnr = @lv_customer<br/>AND erdat IN @lt_dates
     
-### Оптимизация FOR ALL ENTRIES
-
-1. **Внутренняя реализация**:
-   - Преобразуется в серию IN условий
-   - Или в JOIN с временной таблицей
-
-2. **Параметры оптимизации**:
-   - rsdb/max_in_blocking_factor - макс. элементов в IN (по умолчанию 2000)
-   - rsdb/prefer_join - предпочтение JOIN вместо IN
-
-3. **Best practices**:
-   - Удалить дубликаты из driver таблицы
-   - Проверить что driver таблица не пустая
-   - Использовать только необходимые поля в WHERE
     DBI->>DBI: Parse Host Variables
     DBI->>PREP: Prepare Statement<br/>with Placeholders
     
@@ -338,6 +326,21 @@ sequenceDiagram
     DBI-->>ABAP: Internal Table
 ```
 
+### Оптимизация FOR ALL ENTRIES
+
+1. **Внутренняя реализация**:
+   - Преобразуется в серию IN условий
+   - Или в JOIN с временной таблицей
+
+2. **Параметры оптимизации**:
+   - rsdb/max_in_blocking_factor - макс. элементов в IN (по умолчанию 2000)
+   - rsdb/prefer_join - предпочтение JOIN вместо IN
+
+3. **Best practices**:
+   - Удалить дубликаты из driver таблицы
+   - Проверить что driver таблица не пустая
+   - Использовать только необходимые поля в WHERE
+
 ## 6.3. Буферизация таблиц и синхронизация
 
 Буферизация таблиц является одним из ключевых механизмов оптимизации производительности в SAP. Database Interface управляет сложной системой буферов, обеспечивая баланс между производительностью и консистентностью данных.
@@ -350,30 +353,6 @@ graph TB
         subgraph "Full Buffering"
             FULL[Complete Table<br/>in Buffer]
             FULL_USE[Use for:<br/>- Small tables<br/>- Rarely changed<br/>- Frequently read]
-### Расширенные возможности CDS
-
-```sql
-@AbapCatalog.sqlViewName: 'ZCDS_ADVANCED'
-define view Z_Advanced_View as select from vbak
-  association [0..*] to vbap as _Items 
-    on $projection.vbeln = _Items.vbeln
-{
-  key vbeln,
-  erdat,
-  netwr,
-  
-  // Virtual elements
-  @ObjectModel.virtualElement: true
-  cast( '' as abap.char(10) ) as virtual_field,
-  
-  // Aggregations
-  @DefaultAggregation: #SUM
-  netwr as total_value,
-  
-  // Associations
-  _Items
-}
-```
             FULL_EX[Examples:<br/>- T000 (Clients)<br/>- T001 (Company Codes)]
         end
         
@@ -541,6 +520,7 @@ TRY.
     MESSAGE lx_sql->get_text( ) TYPE 'E'.
 ENDTRY.
 ```
+
 - `rsdb/obj/buffersize` - размер буфера для объектов
 
 ### Расширенные возможности CDS
@@ -623,6 +603,31 @@ graph LR
     style GREEN fill:#99ff99,stroke:#333,stroke-width:2px
     style YELLOW fill:#ffff99,stroke:#333,stroke-width:2px
     style RED fill:#ff9999,stroke:#333,stroke-width:2px
+```
+
+### Расширенные возможности CDS
+
+```sql
+@AbapCatalog.sqlViewName: 'ZCDS_ADVANCED'
+define view Z_Advanced_View as select from vbak
+  association [0..*] to vbap as _Items 
+    on $projection.vbeln = _Items.vbeln
+{
+  key vbeln,
+  erdat,
+  netwr,
+  
+  // Virtual elements
+  @ObjectModel.virtualElement: true
+  cast( '' as abap.char(10) ) as virtual_field,
+  
+  // Aggregations
+  @DefaultAggregation: #SUM
+  netwr as total_value,
+  
+  // Associations
+  _Items
+}
 ```
 
 ## 6.4. AMDP и code pushdown в HANA
@@ -708,24 +713,9 @@ sequenceDiagram
     COMPILER->>AMDP_RT: Register AMDP
     
     Note over AMDP_RT,HANA: First Call
-    
-### Полный набор классов ADBC
-
-- CL_SQL_CONNECTION - управление соединениями
-- CL_SQL_STATEMENT - выполнение SQL
-- CL_SQL_PREPARED_STATEMENT - prepared statements
-- CL_SQL_RESULT_SET - работа с результатами
-- CX_SQL_EXCEPTION - обработка ошибок
-
-### Пример с обработкой ошибок:
-```abap
-TRY.
-    DATA(lo_sql) = NEW cl_sql_statement( ).
-    DATA(lo_result) = lo_sql->execute_query( |SELECT * FROM { table }| ).
-  CATCH cx_sql_exception INTO DATA(lx_sql).
-    MESSAGE lx_sql->get_text( ) TYPE 'E'.
 ENDTRY.
 ```
+
 ### Полная картина LUW
 
 1. **SAP LUW vs Database LUW**:
@@ -805,17 +795,6 @@ graph TB
         subgraph "Native SQL"
             EXEC_SQL[EXEC SQL]
             ADBC_N[ADBC]
-## Ключевые транзакции для Database Interface
-
-| Транзакция | Назначение |
-|------------|------------|
-| ST04 | Database Performance Monitor |
-| ST05 | SQL Trace |
-| STAD | Workload Statistics (SQL statements) |
-| DB02 | Tables and Indexes Monitor |
-| DB20 | Update Statistics |
-| DBACOCKPIT | DBA Cockpit |
-| ST12 | Combined trace (ABAP + SQL) |
         end
         
         subgraph "Best Practices"
@@ -839,6 +818,24 @@ graph TB
     
     style USE_CDS fill:#99ff99,stroke:#333,stroke-width:2px
     style USE_AMDP fill:#99ccff,stroke:#333,stroke-width:2px
+```
+
+### Полный набор классов ADBC
+
+- CL_SQL_CONNECTION - управление соединениями
+- CL_SQL_STATEMENT - выполнение SQL
+- CL_SQL_PREPARED_STATEMENT - prepared statements
+- CL_SQL_RESULT_SET - работа с результатами
+- CX_SQL_EXCEPTION - обработка ошибок
+
+### Пример с обработкой ошибок:
+```abap
+TRY.
+    DATA(lo_sql) = NEW cl_sql_statement( ).
+    DATA(lo_result) = lo_sql->execute_query( |SELECT * FROM { table }| ).
+  CATCH cx_sql_exception INTO DATA(lx_sql).
+    MESSAGE lx_sql->get_text( ) TYPE 'E'.
+ENDTRY.
 ```
 
 ### Оптимизация производительности с AMDP
@@ -912,25 +909,6 @@ sequenceDiagram
     TM->>TM: Buffer Insert
     
     ABAP->>DBI: CALL AMDP
-### Полная картина LUW
-
-1. **SAP LUW vs Database LUW**:
-   - SAP LUW может включать несколько DB транзакций
-   - DB LUW = одна database транзакция
-
-2. **Типы Update Task**:
-   - V1 - критические синхронные обновления
-   - V2 - некритические асинхронные обновления  
-   - V3 - фоновые обновления (устарело)
-
-3. **Enqueue в LUW**:
-   - Блокировки удерживаются до конца SAP LUW
-   - Автоматическое освобождение при COMMIT/ROLLBACK
-
-4. **Обработка ошибок**:
-   - ROLLBACK WORK откатывает всю DB транзакцию
-   - Update termination откатывает V1/V2 обновления
-   - Сохранение в VBLOG для анализа
     DBI->>DB: Execute Procedure
     DB-->>DBI: Result
     
@@ -949,6 +927,37 @@ sequenceDiagram
     
     Note over ABAP,DB: SAP LUW Complete
 ```
+
+### Полная картина LUW
+
+1. **SAP LUW vs Database LUW**:
+   - SAP LUW может включать несколько DB транзакций
+   - DB LUW = одна database транзакция
+
+2. **Типы Update Task**:
+   - V1 - критические синхронные обновления
+   - V2 - некритические асинхронные обновления
+
+3. **Enqueue в LUW**:
+   - Блокировки удерживаются до конца SAP LUW
+   - Автоматическое освобождение при COMMIT/ROLLBACK
+
+4. **Обработка ошибок**:
+   - ROLLBACK WORK откатывает всю DB транзакцию
+   - Update termination откатывает V1/V2 обновления
+   - Сохранение в VBLOG для анализа
+
+## Ключевые транзакции для Database Interface
+
+| Транзакция | Назначение |
+|------------|------------|
+| ST04 | Database Performance Monitor |
+| ST05 | SQL Trace |
+| STAD | Workload Statistics (SQL statements) |
+| DB02 | Tables and Indexes Monitor |
+| DB20 | Update Statistics |
+| DBACOCKPIT | DBA Cockpit |
+| ST12 | Combined trace (ABAP + SQL) |
 
 ## Заключение
 

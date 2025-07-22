@@ -34,7 +34,7 @@
 - Комбинация подходов
 - Выборочный перенос данных
 - Реинжиниринг процессов
-SAP R/2, выпущенная в 1979 году, представляла собой революционную для своего времени систему управления предприятием, работающую на мейнфреймах IBM, Siemens и других производителей. Понимание архитектуры R/2 важно не только с исторической точки зрения — многие концептуальные решения той эпохи до сих пор влияют на современные системы SAP.
+SAP R/2, выпущенная в 1979 году (SAP основана в 1972, первая система RF выпущена в 1973), представляла собой революционную для своего времени систему управления предприятием, работающую на мейнфреймах IBM, Siemens и других производителей. Понимание архитектуры R/2 важно не только с исторической точки зрения — многие концептуальные решения той эпохи до сих пор влияют на современные системы SAP.
 
 ### Архитектура R/2
 
@@ -56,8 +56,8 @@ graph TB
             
             subgraph "R/2 Components"
                 DIALOG[Dialog Control]
-                ABAP4[ABAP/4<br/>Interpreter]
-                DBMS[Database<br/>IMS/DB2/VSAM]
+                ABAP4[ABAP<br/>Interpreter]
+                DBMS[Database<br/>IMS, DB2, DL/I]
                 SPOOL[Spool System]
             end
             
@@ -96,9 +96,9 @@ graph TB
 
 **Монолитная архитектура**: Все компоненты выполнялись в едином адресном пространстве мейнфрейма. Это обеспечивало высокую производительность за счет отсутствия сетевых задержек, но ограничивало масштабируемость.
 
-**Терминальная модель**: Пользователи работали через "глупые" терминалы 3270, которые могли отображать только текст в формате 24×80 символов. Вся логика выполнялась на мейнфрейме.
+**Терминальная модель**: Пользователи работали через "глупые" терминалы IBM 3270, VT100 и другие совместимые, которые могли отображать только текст в формате 24×80 символов. Вся логика выполнялась на мейнфрейме.
 
-**ABAP/4**: Ранняя версия языка ABAP была процедурной и оптимизированной для batch-обработки больших объемов данных.
+**ABAP**: Язык программирования для R/2 (ABAP/4 появился позже в R/3) была процедурной и оптимизированной для batch-обработки больших объемов данных.
 
 ### Управление транзакциями в R/2
 
@@ -169,9 +169,19 @@ graph TB
     style MONO fill:#ffcccc,stroke:#333,stroke-width:2px
 ```
 
+### Пример кода R/2 ABAP
+
+```abap
+* R/2 ABAP (процедурный стиль)
+FORM CALCULATE_PRICE.
+  MOVE MATERIAL TO WA_MAT.
+  COMPUTE PRICE = QUANTITY * UNIT_PRICE.
+ENDFORM.
+```
+
 ## 7.2. R/3 и трёхуровневая революция
 
-В 1992 году SAP выпустила R/3 — систему, которая кардинально изменила ландшафт корпоративного ПО. Переход от мейнфреймов к клиент-серверной архитектуре был не просто технологическим обновлением, а фундаментальной сменой парадигмы.
+В июле 1992 года SAP выпустила R/3 — систему, которая кардинально изменила ландшафт корпоративного ПО. Переход от мейнфреймов к клиент-серверной архитектуре был не просто технологическим обновлением, а фундаментальной сменой парадигмы.
 
 ### Драйверы перехода к R/3
 
@@ -247,7 +257,7 @@ graph TB
         end
         
         subgraph "Database Tier"
-            RDBMS[Relational Database<br/>Oracle/DB2/Informix/SQL Server]
+            RDBMS[Relational Database<br/>Oracle, DB2, Informix (изначально). SQL Server добавлен в 1996]
             DATA[Application Data]
             REPO[ABAP Repository]
         end
@@ -283,7 +293,7 @@ graph TB
 
 **SAP GUI и DIAG протокол**: Графический интерфейс революционизировал пользовательский опыт, при этом DIAG протокол минимизировал сетевой трафик, передавая только изменения экрана.
 
-**Work Process концепция**: Введение специализированных процессов (Dialog, Background, Update, Spool) позволило оптимизировать обработку различных типов задач.
+**Work Process концепция**: Введение специализированных процессов (Dialog, Background, Update, Update 2 (UPD2) - асинхронные обновления V2, Spool) позволило оптимизировать обработку различных типов задач.
 
 **ABAP Objects**: С версии 4.6 ABAP получил объектно-ориентированные возможности, что кардинально расширило возможности разработки.
 Стандартные порты:
@@ -331,9 +341,18 @@ graph LR
     style DB_BOTTLE fill:#ff9999,stroke:#333,stroke-width:2px
 ```
 
+### Пример кода R/3 ABAP/4
+
+```abap
+* R/3 ABAP/4 (модульность)
+FUNCTION Z_CALCULATE_PRICE.
+  price = quantity * unit_price.
+ENDFUNCTION.
+```
+
 ## 7.3. NetWeaver и интеграция Java
 
-В 2004 году SAP представила NetWeaver — технологическую платформу, которая должна была объединить ABAP и Java миры. Это была амбициозная попытка создать универсальную платформу для всех типов приложений.
+В 2003 году SAP анонсировала NetWeaver, первый релиз (NetWeaver '04) вышел в 2004 — технологическую платформу, которая должна была объединить ABAP и Java миры. Это была амбициозная попытка создать универсальную платформу для всех типов приложений.
 
 ### Архитектура NetWeaver Dual-Stack
 
@@ -396,6 +415,8 @@ graph TB
     style JCO fill:#ff9999,stroke:#333,stroke-width:2px
 ```
 
+**Важное замечание об ICM**: Начиная с Web AS 6.40, ICM (Internet Communication Manager) интегрирован в процесс disp+work и не является отдельным процессом. Это упрощает архитектуру и управление системой.
+
 ### Проблемы Dual-Stack подхода
 
 ```mermaid
@@ -408,7 +429,7 @@ graph TB
         end
         
         subgraph "Resource Overhead"
-            MEMORY[High Memory<br/>Consumption]
+            MEMORY[Требования к памяти: dual-stack требует 2x память (мин. 16GB для малых систем)]
             CPU[CPU Overhead<br/>Two Runtimes]
             STARTUP[Long Startup<br/>Times]
         end
@@ -439,7 +460,7 @@ timeline
     
     2004 : NetWeaver 04
          : First dual-stack
-         : J2EE 1.3
+         : J2EE 1.4 (в NetWeaver '04)
          : Web AS 6.40
     
     2007 : NetWeaver 7.0
@@ -454,7 +475,7 @@ timeline
     
     2013 : NetWeaver 7.4
          : ABAP-only focus
-         : Java deprecated
+         : Java stack отделен (не deprecated). SAP продолжает поддержку Java приложений
          : HANA optimization
     
     2015 : NetWeaver 7.5
@@ -471,9 +492,19 @@ timeline
 
 **Эволюция рынка**: Появление легковесных микросервисов и REST API сделало тяжеловесную J2EE архитектуру устаревшей.
 
+### Пример кода NetWeaver ABAP Objects
+
+```abap
+* NetWeaver ABAP Objects
+CLASS lcl_price_calculator DEFINITION.
+  PUBLIC SECTION.
+    METHODS: calculate_price.
+ENDCLASS.
+```
+
 ## 7.4. S/4HANA и in-memory парадигма
 
-S/4HANA, анонсированная в 2015 году, представляет собой не просто обновление ERP-системы, а фундаментальную переархитектуру, использующую возможности in-memory вычислений SAP HANA.
+S/4HANA, анонсированная в феврале 2015 и выпущенная в ноябре 2015, представляет собой не просто обновление ERP-системы, а фундаментальную переархитектуру, использующую возможности in-memory вычислений SAP HANA.
 
 ### Архитектурная трансформация
 
@@ -541,9 +572,9 @@ graph LR
         end
         
         subgraph "S/4HANA Model"
-            ACDOCA[ACDOCA<br/>Universal Journal]
-            BKPF_S4[BKPF<br/>Compatibility View]
-            BSEG_S4[BSEG<br/>Compatibility View]
+            ACDOCA[Universal Journal<br/>(таблица ACDOCA)]
+            BKPF_S4[BKPF<br/>CDS Compatibility View]
+            BSEG_S4[BSEG<br/>CDS Compatibility View]
         end
         
         BKPF --> ACDOCA
@@ -594,7 +625,7 @@ sequenceDiagram
     AS-->>Fiori: JSON Response
     Fiori-->>User: Real-time Display
     
-    Note over User,CE: Seconds vs Hours
+    Note over User,CE: Пример: MRP расчет - 30 минут → 30 секунд (в зависимости от объема данных)
 ```
 
 ### Инновации S/4HANA
@@ -606,6 +637,19 @@ sequenceDiagram
 **Simplified Data Model**: Устранение избыточности через использование возможностей HANA.
 
 **Digital Core**: Готовность к интеграции с IoT, ML, блокчейн и другими современными технологиями.
+
+### Пример кода S/4HANA (CDS + ABAP)
+
+```abap
+* S/4HANA (CDS + ABAP)
+@AbapCatalog.sqlViewName: 'ZPRICE_CALC'
+define view Z_Price_Calculation as select from mara
+{
+  key matnr,
+  @Semantics.quantity.unitOfMeasure: 'meins'
+  quantity * unit_price as total_price
+}
+```
 
 ### Сравнение архитектурных эпох
 

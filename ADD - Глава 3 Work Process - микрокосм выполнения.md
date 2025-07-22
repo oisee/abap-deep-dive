@@ -34,7 +34,7 @@ Work Process (WP) — это фундаментальная единица вы�
 | Процесс Work Process | Отдельный процесс ОС | Поток в disp+work.exe |
 | Исполняемый файл | disp+work | disp+work.exe |
 | Мониторинг | ps -ef, top | Task Manager, Process Explorer |
-| Trace файлы | /usr/sap/<SID>/DVEBMGS00/work/dev_w* | <drive>:\usr\sap\<SID>\DVEBMGS00\work\dev_w* |
+| Trace файлы | /usr/sap/<SID>/DVEBMGS00/work/dev_w* | <drive>:\\usr\\sap\\<SID>\\DVEBMGS00\\work\\dev_w* |
 
 ## Типы Work Process
 
@@ -172,6 +172,16 @@ flowchart TD
     DIA_CHECK -->|No| WAIT
     
     BTC_CHECK -->|Yes| ASSIGN_BTC
+    BTC_CHECK -->|No| WAIT
+    
+    UPD_CHECK -->|Yes| ASSIGN_UPD
+    UPD_CHECK -->|No| WAIT
+    
+    WAIT --> PRIORITY
+    PRIORITY -->|High| HIGH
+    PRIORITY -->|Normal| NORMAL
+```
+
 ## Ограничения времени выполнения
 
 **Критическое ограничение**: Максимальное время выполнения диалогового шага

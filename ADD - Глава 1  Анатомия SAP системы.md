@@ -426,7 +426,6 @@ graph TB
 - Упрощенная логика failover
 - Улучшенная производительность за счет оптимизированных структур данных
 
-markdown
 ## Web Dispatcher — шлюз для веб-запросов
 
 В современных ландшафтах SAP Web Dispatcher играет критическую роль:
@@ -452,142 +451,8 @@ graph LR
 wdisp/system_0 = SID=PRD, MSHOST=prdms, MSPORT=8100, SRCSRV=*:80
 wdisp/system_1 = SID=PRD, MSHOST=prdms, MSPORT=8101, SRCSRV=*:443, SSL=1
 ```
-```
 
-### Добавление 2: Полный список транзакций мониторинга
-- Файл: ADD - Глава 1 Анатомия SAP системы.md
-- Строка: перед заключением (строка ~610)
-- Добавить:
-```markdown
-## Ключевые транзакции для анализа архитектуры
-
-### Мониторинг компонентов:
-| Транзакция | Назначение | Что показывает |
-|------------|------------|----------------|
-| SM51 | Список серверов | Все активные инстансы системы |
-| SM50 | Процессы инстанса | Work processes текущего сервера |
-| SM66 | Глобальные процессы | Work processes всей системы |
-| SM12 | Блокировки | Enqueue записи |
-| SM13 | Update записи | Очередь обновлений |
-| SM21 | System log | Критические события |
-| ST06 | OS Monitor | Загрузка CPU/память/диски |
-| ST02 | Tune Summary | Использование памяти и буферов |
-| AL08 | Пользователи | Распределение по серверам |
-| SMLG | Logon Groups | Группы балансировки |
-
-### Команды анализа ОС:
-```bash
-# Linux/Unix
-ps -ef | grep sapstart    # SAP Start Service
-ps -ef | grep dw          # Work processes
-ipcs -m | grep <sid>adm   # Shared memory
-
-# Windows
-tasklist | findstr disp   # Dispatcher процессы
-tasklist | findstr sapstart # Start services
-```
-```
-
-### Добавление 3: Исправление CDS View
-- Файл: ADD - Глава 1 Анатомия SAP системы.md  
-- Строка: 544-557
-- Найти: неправильный синтаксис CDS
-- Заменить:
-```sql
-@AbapCatalog.sqlViewName: 'ZLARGEORDERSV'
-@AbapCatalog.compiler.compareFilter: true
-@AbapCatalog.preserveKey: true
-@AccessControl.authorizationCheck: #CHECK
-@EndUserText.label: 'Large Orders View'
-define view Z_Large_Orders
-  with parameters
-    @Environment.systemField: #CLIENT
-    p_client : abap.clnt,
-    p_date_from : dats,
-    p_date_to : dats
-as select from vbak as header
-  inner join vbap as item
-    on header.vbeln = item.vbeln
-{
-  key header.client,
-  key header.vbeln as OrderNumber,
-  header.erdat as OrderDate,
-  header.kunnr as Customer,
-  @Semantics.amount.currencyCode: 'Currency'
-  sum( item.netwr ) as TotalAmount,
-  @Semantics.currencyCode: true
-  header.waerk as Currency
-}
-where header.client = $parameters.p_client
-  and header.erdat between $parameters.p_date_from and $parameters.p_date_to
-group by header.client,
-         header.vbeln,
-         header.erdat,
-         header.kunnr,
-         header.waerk
-having sum( item.netwr ) > 10000
-```
-
-### Добавление 4: Информация о платформах
-- Файл: ADD - Глава 1 Анатомия SAP системы.md
-- Строка: после текущей строки 150
-- Добавить:
-```markdown
-## Платформо-специфичные особенности
-
-### Пути установки по умолчанию:
-| ОС | Путь SAP | Исполняемые файлы |
-|----|----------|-------------------|
-| Linux/Unix | /usr/sap/<SID> | /sapmnt/<SID>/exe |
-| Windows | C:\usr\sap\<SID> | \\<server>\sapmnt\<SID>\exe |
-| AIX | /usr/sap/<SID> | /sapmnt/<SID>/exe |
-
-### Различия в управлении процессами:
-- **Unix/Linux**: отдельные процессы ОС для каждого work process
-- **Windows**: потоки (threads) внутри disp+work.exe
-- **Влияние**: разные подходы к мониторингу и отладке
-```
-
-### Добавление 5: Секция безопасности
-- Файл: ADD - Глава 1 Анатомия SAP системы.md
-- Строка: перед заключением
-- Добавить:
-```markdown
-## Архитектура безопасности
-
-### Сетевые зоны:
-```mermaid
-graph TB
-    subgraph "DMZ"
-        WD[Web Dispatcher]
-        SR[SAP Router]
-    end
-    
-    subgraph "Application Zone"
-        AS1[App Server 1]
-        AS2[App Server 2]
-        MS[Message Server]
-    end
-    
-    subgraph "Database Zone"
-        DB[(Database)]
-        ES[Enqueue Server]
-    end
-    
-    Internet --> WD
-    WD --> AS1
-    WD --> AS2
-    SR --> MS
-    AS1 --> DB
-    AS2 --> DB
-```
-
-### Ключевые принципы:
-- Разделение на зоны безопасности
-- Минимизация открытых портов
-- Шифрование коммуникаций (SNC)
-- Регулярные обновления ядра
-### Интеграция с кластерным ПО
+## Интеграция с кластерным ПО
 
 SAP не реализует собственное кластерное решение, а интегрируется с платформенными решениями:
 
@@ -601,7 +466,17 @@ graph LR
     end
     
     subgraph "Cluster Software"
-markdown
+        CS[Pacemaker/WSFC]
+        FENCE[Fencing]
+        VIP[Virtual IP]
+    end
+    
+    CS --> ASCS
+    CS --> ERS
+    CS --> VIP
+    sapcontrol --> CS
+```
+
 ## Web Dispatcher — шлюз для веб-запросов
 
 В современных ландшафтах SAP Web Dispatcher играет критическую роль:
@@ -627,13 +502,45 @@ graph LR
 wdisp/system_0 = SID=PRD, MSHOST=prdms, MSPORT=8100, SRCSRV=*:80
 wdisp/system_1 = SID=PRD, MSHOST=prdms, MSPORT=8101, SRCSRV=*:443, SSL=1
 ```
-```
 
-### Добавление 2: Полный список транзакций мониторинга
-- Файл: ADD - Глава 1 Анатомия SAP системы.md
-- Строка: перед заключением (строка ~610)
-- Добавить:
-```markdown
+### Интеграция кластерного ПО с SAP:
+
+```mermaid
+graph TB
+    subgraph "Cluster Platforms"
+        subgraph "Linux"
+            Pacemaker
+            Corosync
+        end
+        
+        subgraph "Windows"
+            WSFC[Windows Server<br/>Failover Clustering]
+        end
+        
+        subgraph "Unix"
+            PowerHA[AIX PowerHA]
+            SolCluster[Solaris Cluster]
+        end
+    end
+    
+    subgraph "Cluster Resources"
+        VIP[Virtual IP]
+        FS[Shared Filesystem]
+        MON[Monitoring Scripts]
+    end
+    
+    subgraph "SAP Integration"
+        sapstartsrv --> MON
+        sapcontrol --> MON
+        MON --> Pacemaker
+        MON --> WSFC
+        MON --> PowerHA
+    end
+    
+    style Pacemaker fill:#f9f,stroke:#333,stroke-width:2px
+    style WSFC fill:#bbf,stroke:#333,stroke-width:2px
+    style PowerHA fill:#bfb,stroke:#333,stroke-width:2px
+```
 ## Ключевые транзакции для анализа архитектуры
 
 ### Мониторинг компонентов:
