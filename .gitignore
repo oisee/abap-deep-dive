@@ -1,3 +1,5 @@
+.mcp.json
+
 # Build artifacts
 build/
 *.pdf
@@ -40,3 +42,4 @@ venv/
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+mcp_json
