@@ -925,6 +925,336 @@ graph TB
     style IDENTIFY fill:#99ff99,stroke:#333,stroke-width:2px
 ```
 
+## 12.5. Мониторинг фреймворков фоновой обработки
+
+Фреймворки фоновой обработки bgRFC (Background RFC) и bgPF (Background Processing Framework) требуют специализированных инструментов мониторинга для анализа асинхронной обработки и диагностики проблем производительности. В отличие от синхронных процессов, фоновая обработка имеет свои уникальные паттерны и точки отказа.
+
+### Архитектура мониторинга bgRFC/bgPF
+
+```mermaid
+graph TB
+    subgraph "Background Processing Monitoring"
+        subgraph "Core Monitoring Tools"
+            SBGRFCMON[SBGRFCMON<br/>Main Monitor]
+            SBGRFCMON_UNIT[SBGRFCMON_UNIT<br/>Unit Monitor]
+            SBGRFCMON_DEST[SBGRFCMON_DEST<br/>Destination Monitor]
+            SBGRFCMON_QSTAT[SBGRFCMON_QSTAT<br/>Queue Statistics]
+        end
+        
+        subgraph "Traditional Tools"
+            SM37[SM37<br/>Background Jobs]
+            SMQ1[SMQ1<br/>qRFC Monitor<br/>Outbound]
+            SMQ2[SMQ2<br/>qRFC Monitor<br/>Inbound]
+            SOST[SOST<br/>SAPconnect]
+        end
+        
+        subgraph "Performance Analysis"
+            BGPF_TRACE[bgPF Trace<br/>Analysis]
+            UNIT_PERF[Unit Performance<br/>Statistics]
+            THROUGHPUT[Throughput<br/>Analysis]
+            BOTTLENECK[Bottleneck<br/>Detection]
+        end
+        
+        subgraph "Error Analysis"
+            ERROR_LOG[Error Log<br/>Analysis]
+            RETRY_PATTERN[Retry Pattern<br/>Analysis]
+            FAILURE_CHAIN[Failure Chain<br/>Tracking]
+            SUPERVISOR[Supervisor Unit<br/>Monitoring]
+        end
+        
+        SBGRFCMON --> SBGRFCMON_UNIT
+        SBGRFCMON --> SBGRFCMON_DEST
+        SBGRFCMON_UNIT --> UNIT_PERF
+        
+        SM37 --> BGPF_TRACE
+        SMQ1 --> THROUGHPUT
+        
+        ERROR_LOG --> RETRY_PATTERN
+        RETRY_PATTERN --> FAILURE_CHAIN
+    end
+    
+    style SBGRFCMON fill:#ff9999,stroke:#333,stroke-width:4px
+    style BGPF_TRACE fill:#99ccff,stroke:#333,stroke-width:2px
+    style ERROR_LOG fill:#ffff99,stroke:#333,stroke-width:2px
+```
+
+### SBGRFCMON - центральный инструмент мониторинга
+
+```mermaid
+sequenceDiagram
+    participant ADMIN as Administrator
+    participant SBGMON as SBGRFCMON
+    participant QUEUE as bgRFC Queue
+    participant SCHEDULER as bgPF Scheduler
+    participant UNIT as Processing Unit
+    participant DB as Database
+    
+    ADMIN->>SBGMON: Start Monitoring
+    SBGMON->>QUEUE: Query Queue Status
+    QUEUE-->>SBGMON: Queue Statistics
+    
+    SBGMON->>SCHEDULER: Get Scheduler Info
+    SCHEDULER-->>SBGMON: Active Units
+    
+    par Real-time Updates
+        loop Every 5 seconds
+            SBGMON->>UNIT: Get Unit Status
+            UNIT-->>SBGMON: Processing State
+        end
+    and
+        SBGMON->>DB: Query Performance Data
+        DB-->>SBGMON: Historical Metrics
+    end
+    
+    SBGMON->>ADMIN: Display Dashboard
+    
+    Note over SBGMON,DB: Monitoring includes:<br/>- Queue depth<br/>- Processing times<br/>- Error rates<br/>- Resource usage
+```
+
+### Анализ производительности Unit'ов
+
+```mermaid
+graph TB
+    subgraph "Unit Performance Analysis"
+        subgraph "Performance Metrics"
+            EXEC_TIME[Execution Time<br/>per Unit]
+            QUEUE_TIME[Queue Wait<br/>Time]
+            COMMIT_TIME[Commit<br/>Duration]
+            RETRY_COUNT[Retry<br/>Attempts]
+        end
+        
+        subgraph "Throughput Analysis"
+            UNITS_SEC[Units per<br/>Second]
+            BATCH_SIZE[Batch Size<br/>Optimization]
+            PARALLEL[Parallel<br/>Processing]
+            RESOURCE_UTIL[Resource<br/>Utilization]
+        end
+        
+        subgraph "Bottleneck Detection"
+            DB_BOTTLENECK[Database<br/>Bottleneck]
+            MEMORY_LIMIT[Memory<br/>Limitations]
+            CPU_BOUND[CPU Bound<br/>Processing]
+            LOCK_CONTENTION[Lock<br/>Contention]
+        end
+        
+        subgraph "Optimization Hints"
+            BATCH_TUNING[Batch Size<br/>Tuning]
+            PARALLEL_TUNE[Parallelization<br/>Tuning]
+            SCHEDULER_OPT[Scheduler<br/>Optimization]
+            RESOURCE_PLAN[Resource<br/>Planning]
+        end
+        
+        EXEC_TIME --> DB_BOTTLENECK
+        QUEUE_TIME --> SCHEDULER_OPT
+        UNITS_SEC --> BATCH_TUNING
+        
+        DB_BOTTLENECK --> BATCH_TUNING
+        MEMORY_LIMIT --> PARALLEL_TUNE
+        CPU_BOUND --> RESOURCE_PLAN
+    end
+    
+    style DB_BOTTLENECK fill:#ff9999,stroke:#333,stroke-width:2px
+    style BATCH_TUNING fill:#99ff99,stroke:#333,stroke-width:2px
+```
+
+### Мониторинг очередей и состояний
+
+```mermaid
+graph LR
+    subgraph "Queue and State Monitoring"
+        subgraph "Queue States"
+            INITIAL[Initial<br/>Созданы, не обработаны]
+            RUNNING[Running<br/>В процессе обработки]
+            PROCESSED[Processed<br/>Успешно завершены]
+            ERROR[Error<br/>Ошибка обработки]
+        end
+        
+        subgraph "Unit States"
+            WAITING[Waiting<br/>Ожидают ресурсов]
+            ACTIVE[Active<br/>Выполняются]
+            COMMITTED[Committed<br/>Зафиксированы]
+            FAILED[Failed<br/>Провалены]
+        end
+        
+        subgraph "Monitoring Views"
+            QUEUE_DEPTH[Queue Depth<br/>Глубина очереди]
+            AGING[Message Aging<br/>Время в очереди]
+            ERROR_RATE[Error Rate<br/>Процент ошибок]
+            RECOVERY[Recovery Status<br/>Статус восстановления]
+        end
+        
+        subgraph "Alerts"
+            HIGH_QUEUE[High Queue<br/>Depth Alert]
+            ERROR_SPIKE[Error Rate<br/>Spike Alert]
+            STALE_UNITS[Stale Units<br/>Alert]
+            RESOURCE_LIMIT[Resource<br/>Limit Alert]
+        end
+        
+        INITIAL --> QUEUE_DEPTH
+        ERROR --> ERROR_RATE
+        WAITING --> AGING
+        
+        QUEUE_DEPTH --> HIGH_QUEUE
+        ERROR_RATE --> ERROR_SPIKE
+        AGING --> STALE_UNITS
+    end
+    
+    style ERROR fill:#ff9999,stroke:#333,stroke-width:2px
+    style HIGH_QUEUE fill:#ffcccc,stroke:#333,stroke-width:2px
+    style ERROR_SPIKE fill:#ff6666,stroke:#333,stroke-width:2px
+```
+
+### Интеграция с классическими инструментами
+
+```mermaid
+graph TB
+    subgraph "Integration with Classic Tools"
+        subgraph "Background Job Analysis"
+            SM37_VIEW[SM37<br/>Job Overview]
+            JOB_LOG[Job Log<br/>Analysis]
+            JOB_CHAIN[Job Chain<br/>Dependencies]
+            VARIANT[Job Variants<br/>Configuration]
+        end
+        
+        subgraph "qRFC Monitoring"
+            SMQ1_OUT[SMQ1<br/>Outbound qRFC]
+            SMQ2_IN[SMQ2<br/>Inbound qRFC]
+            QRFC_QUEUE[qRFC Queue<br/>Management]
+            TID_TRACK[TID Tracking<br/>Transaction IDs]
+        end
+        
+        subgraph "Cross-System Analysis"
+            RFC_DEST[RFC Destinations<br/>SM59]
+            CONNECT_TEST[Connection Test<br/>Performance]
+            LOAD_BALANCE[Load Balancing<br/>Analysis]
+            NETWORK_LAT[Network<br/>Latency]
+        end
+        
+        subgraph "bgRFC Extensions"
+            BGRFC_UNIT[bgRFC Unit<br/>Processing]
+            SUPERVISOR_UNIT[Supervisor<br/>Units]
+            QUEUE_MGMT[Queue<br/>Management]
+            UNIT_DEPEND[Unit<br/>Dependencies]
+        end
+        
+        SM37_VIEW --> BGRFC_UNIT
+        SMQ1_OUT --> QUEUE_MGMT
+        RFC_DEST --> SUPERVISOR_UNIT
+        
+        BGRFC_UNIT --> UNIT_DEPEND
+        QUEUE_MGMT --> UNIT_DEPEND
+    end
+    
+    style BGRFC_UNIT fill:#99ccff,stroke:#333,stroke-width:2px
+    style UNIT_DEPEND fill:#99ff99,stroke:#333,stroke-width:2px
+```
+
+### Анализ паттернов ошибок и восстановления
+
+```mermaid
+graph TB
+    subgraph "Error Pattern Analysis"
+        subgraph "Error Types"
+            TEMP_ERROR[Temporary Errors<br/>Retry возможен]
+            PERM_ERROR[Permanent Errors<br/>Требует вмешательства]
+            CONFIG_ERROR[Configuration<br/>Errors]
+            RESOURCE_ERROR[Resource<br/>Exhaustion]
+        end
+        
+        subgraph "Retry Patterns"
+            IMMEDIATE[Immediate<br/>Retry]
+            DELAYED[Delayed<br/>Retry]
+            EXPONENTIAL[Exponential<br/>Backoff]
+            MANUAL[Manual<br/>Intervention]
+        end
+        
+        subgraph "Recovery Strategies"
+            AUTO_RECOVERY[Automatic<br/>Recovery]
+            SUPERVISOR[Supervisor<br/>Recovery]
+            ADMIN_ACTION[Administrator<br/>Action Required]
+            SYSTEM_RESTART[System<br/>Restart Required]
+        end
+        
+        subgraph "Analysis Tools"
+            ERROR_TREND[Error Trend<br/>Analysis]
+            ROOT_CAUSE[Root Cause<br/>Analysis]
+            IMPACT_ASSESS[Impact<br/>Assessment]
+            SOLUTION_TRACK[Solution<br/>Tracking]
+        end
+        
+        TEMP_ERROR --> DELAYED
+        PERM_ERROR --> MANUAL
+        
+        DELAYED --> AUTO_RECOVERY
+        MANUAL --> ADMIN_ACTION
+        
+        AUTO_RECOVERY --> ERROR_TREND
+        ADMIN_ACTION --> ROOT_CAUSE
+    end
+    
+    style PERM_ERROR fill:#ff9999,stroke:#333,stroke-width:2px
+    style ROOT_CAUSE fill:#99ccff,stroke:#333,stroke-width:2px
+```
+
+### Специфика мониторинга для различных сценариев
+
+```mermaid
+graph LR
+    subgraph "Scenario-Specific Monitoring"
+        subgraph "High Volume Processing"
+            BULK_LOAD[Bulk Data<br/>Loading]
+            BATCH_PROC[Batch<br/>Processing]
+            ETL_JOBS[ETL<br/>Jobs]
+        end
+        
+        subgraph "Real-time Integration"
+            API_CALLS[API<br/>Integration]
+            EVENT_PROC[Event<br/>Processing]
+            STREAM_PROC[Stream<br/>Processing]
+        end
+        
+        subgraph "Cross-System"
+            RFC_CHAIN[RFC<br/>Chains]
+            IDOC_PROC[IDoc<br/>Processing]
+            B2B_COMM[B2B<br/>Communication]
+        end
+        
+        subgraph "Monitoring Focus"
+            THROUGHPUT_MON[Throughput<br/>Monitoring]
+            LATENCY_MON[Latency<br/>Monitoring]
+            RELIABILITY_MON[Reliability<br/>Monitoring]
+        end
+        
+        BULK_LOAD --> THROUGHPUT_MON
+        API_CALLS --> LATENCY_MON
+        RFC_CHAIN --> RELIABILITY_MON
+    end
+    
+    style THROUGHPUT_MON fill:#99ff99,stroke:#333,stroke-width:2px
+    style LATENCY_MON fill:#99ccff,stroke:#333,stroke-width:2px
+    style RELIABILITY_MON fill:#ffff99,stroke:#333,stroke-width:2px
+```
+
+### Практические рекомендации по мониторингу
+
+1. **Регулярный мониторинг**:
+   - Ежедневная проверка SBGRFCMON для выявления проблем
+   - Анализ трендов производительности через SBGRFCMON_QSTAT
+   - Мониторинг глубины очередей и времени обработки
+
+2. **Настройка алертов**:
+   - Превышение критической глубины очереди
+   - Высокий процент ошибок обработки
+   - Долго обрабатывающиеся единицы
+
+3. **Производительность**:
+   - Оптимизация размера пакетов для массовой обработки
+   - Настройка параллельной обработки через Supervisor Units
+   - Балансировка нагрузки между инстансами
+
+4. **Кросс-ссылка на Главу 11.2**:
+   Подробная архитектура bgRFC и bgPF фреймворков, включая Supervisor Units, Queue Management и Unit Dependencies, описана в разделе 11.2 "Эволюция фоновой обработки". Понимание архитектурных принципов критически важно для эффективного мониторинга и диагностики проблем.
+
 ## Заключение
 
 Инструменты анализа SAP представляют собой мощный арсенал для диагностики и оптимизации системы на всех уровнях - от SQL-запросов до внутренностей kernel:
@@ -936,6 +1266,8 @@ graph TB
 3. **Memory Inspector** - критически важен для обнаружения утечек памяти и оптимизации использования памяти
 
 4. **Kernel Snapshot Analyzer** - последняя инстанция для диагностики сложных системных проблем
+
+5. **bgRFC/bgPF Monitoring (SBGRFCMON)** - специализированные инструменты для мониторинга асинхронной фоновой обработки, критически важные в эпоху массовой интеграции и real-time processing
 
 Ключевые принципы эффективного анализа:
 

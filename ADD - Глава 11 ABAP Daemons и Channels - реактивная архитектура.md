@@ -905,6 +905,483 @@ graph TB
     style PUSH fill:#99ccff,stroke:#333,stroke-width:2px
 ```
 
+## 11.1.5. Интеграция с фреймворками фоновой обработки
+
+### Выбор между ABAP Daemons и bgPF/bgRFC
+
+При проектировании системы важно понимать, когда использовать ABAP Daemons, а когда традиционные фреймворки фоновой обработки:
+
+```mermaid
+graph TB
+    subgraph "Decision Matrix: Processing Framework Selection"
+        subgraph "ABAP Daemons - Use Cases"
+            REALTIME[Real-time Processing<br/>< 1 second response]
+            STATEFUL[Stateful Operations<br/>Session context]
+            CONTINUOUS[Continuous Monitoring<br/>24/7 operations]
+            INTERACTIVE[Interactive Response<br/>WebSocket/AMC]
+        end
+        
+        subgraph "bgPF/bgRFC - Use Cases"
+            BATCH[Batch Processing<br/>Large data volumes]
+            SCHEDULED[Scheduled Jobs<br/>Time-based execution]
+            RESILIENT[High Resilience<br/>Restart capability]
+            SCALABLE[Horizontal Scaling<br/>Multiple servers]
+        end
+        
+        subgraph "Hybrid Scenarios"
+            TRIGGER[Event Triggering]
+            COORDINATION[Process Coordination]
+            HANDOFF[Task Handoff]
+        end
+        
+        REALTIME --> TRIGGER
+        BATCH --> TRIGGER
+        TRIGGER --> COORDINATION
+        COORDINATION --> HANDOFF
+    end
+    
+    style REALTIME fill:#99ff99,stroke:#333,stroke-width:2px
+    style BATCH fill:#99ccff,stroke:#333,stroke-width:2px
+    style TRIGGER fill:#ffcc99,stroke:#333,stroke-width:2px
+```
+
+### Event-driven Background Processing
+
+AMC может эффективно запускать фоновую обработку по событиям:
+
+```abap
+CLASS zcl_event_driven_processor DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC .
+
+  PUBLIC SECTION.
+    INTERFACES: if_amc_message_receiver.
+    
+    TYPES: BEGIN OF ty_process_request,
+             process_type TYPE string,
+             priority     TYPE i,
+             data_id      TYPE string,
+             parameters   TYPE string_table,
+           END OF ty_process_request.
+           
+    CLASS-METHODS:
+      start_listener
+        RAISING cx_amc_error,
+        
+      trigger_background_processing
+        IMPORTING
+          is_request TYPE ty_process_request
+        RAISING
+          cx_bgpf_error
+          cx_rfc_error.
+          
+  PRIVATE SECTION.
+    METHODS:
+      process_heavy_task
+        IMPORTING
+          is_request TYPE ty_process_request
+        RAISING
+          cx_bgpf_error,
+          
+      process_distributed_task
+        IMPORTING
+          is_request TYPE ty_process_request
+        RAISING
+          cx_rfc_error,
+          
+      schedule_batch_job
+        IMPORTING
+          is_request TYPE ty_process_request
+        RAISING
+          cx_bgpf_error.
+ENDCLASS.
+
+CLASS zcl_event_driven_processor IMPLEMENTATION.
+  METHOD start_listener.
+    " Подписка на команды для фоновой обработки
+    cl_amc_channel_manager=>create_message_consumer(
+      i_application_id = 'ZAMC_BACKGROUND'
+      i_channel_id     = '/background/commands'
+    )->start_message_delivery( i_receiver = NEW zcl_event_driven_processor( ) ).
+  ENDMETHOD.
+  
+  METHOD if_amc_message_receiver~receive.
+    " Обработка команд на фоновую обработку
+    TRY.
+        DATA(lo_text_message) = CAST if_amc_message_text( i_message ).
+        DATA(lv_json) = lo_text_message->get_text( ).
+        
+        " Десериализация запроса
+        DATA: ls_request TYPE ty_process_request.
+        /ui2/cl_json=>deserialize(
+          EXPORTING json = lv_json
+          CHANGING  data = ls_request
+        ).
+        
+        " Маршрутизация на соответствующий фреймворк
+        CASE ls_request-process_type.
+          WHEN 'HEAVY_COMPUTATION'.
+            " Тяжелые вычисления - bgPF
+            process_heavy_task( ls_request ).
+            
+          WHEN 'DISTRIBUTED'.
+            " Распределенная обработка - bgRFC
+            process_distributed_task( ls_request ).
+            
+          WHEN 'SCHEDULED'.
+            " Отложенное выполнение - Batch Job
+            schedule_batch_job( ls_request ).
+            
+        ENDCASE.
+        
+      CATCH cx_root INTO DATA(lx_error).
+        " Уведомление об ошибке через AMC
+        cl_amc_channel_manager=>create_message_producer(
+          i_application_id = 'ZAMC_BACKGROUND'
+          i_channel_id     = '/background/errors'
+        )->send_message( |Error processing request: { lx_error->get_text( ) }| ).
+    ENDTRY.
+  ENDMETHOD.
+  
+  METHOD process_heavy_task.
+    " Запуск через bgPF для тяжелых вычислений
+    DATA: lo_unit TYPE REF TO if_bgpf_unit.
+    
+    " Создание bgPF unit
+    lo_unit = cl_bgpf_unit_factory=>get_instance( )->create_unit(
+      i_name = |HEAVY_TASK_{ is_request-data_id }|
+    ).
+    
+    " Добавление задач
+    lo_unit->add_task(
+      i_task_name     = 'PROCESS_DATA'
+      i_task_class    = 'ZCL_HEAVY_PROCESSOR'
+      i_task_method   = 'EXECUTE'
+      i_task_data     = is_request-data_id
+      i_priority      = is_request-priority
+    ).
+    
+    " Запуск с callback для уведомления через AMC
+    lo_unit->set_callback(
+      i_callback_class  = 'ZCL_BGPF_AMC_CALLBACK'
+      i_callback_method = 'ON_COMPLETE'
+    ).
+    
+    lo_unit->start( ).
+    
+    " Немедленное уведомление о запуске
+    cl_amc_channel_manager=>create_message_producer(
+      i_application_id = 'ZAMC_BACKGROUND'
+      i_channel_id     = '/background/status'
+    )->send_message( |Heavy task started: { is_request-data_id }| ).
+  ENDMETHOD.
+  
+  METHOD process_distributed_task.
+    " Запуск через bgRFC для распределенной обработки
+    DATA: lo_destination TYPE REF TO if_bgrfc_destination_outbound.
+    
+    " Выбор пула серверов для обработки
+    lo_destination = cl_bgrfc_destination_outbound=>create(
+      i_destination = 'BGPF_SERVER_POOL'
+    ).
+    
+    " Создание bgRFC unit of work
+    DATA(lo_unit) = lo_destination->create_unit( ).
+    
+    " Добавление вызовов
+    lo_unit->add_call(
+      i_function_name = 'Z_DISTRIBUTED_PROCESSOR'
+      i_parameter     = VALUE #(
+        ( name = 'DATA_ID' value = is_request-data_id )
+        ( name = 'PARAMETERS' value = is_request-parameters )
+      )
+    ).
+    
+    " Отправка с tracking ID
+    DATA(lv_tracking_id) = lo_unit->send( ).
+    
+    " Уведомление о запуске
+    cl_amc_channel_manager=>create_message_producer(
+      i_application_id = 'ZAMC_BACKGROUND'
+      i_channel_id     = '/background/status'
+    )->send_message( |Distributed task sent: { lv_tracking_id }| ).
+  ENDMETHOD.
+ENDCLASS.
+```
+
+### Daemon как координатор фоновых процессов
+
+Демон может выступать в роли координатора, управляющего жизненным циклом фоновых задач:
+
+```abap
+CLASS zcl_background_coordinator DEFINITION
+  PUBLIC
+  INHERITING FROM cl_abap_daemon_ext_base
+  FINAL
+  CREATE PUBLIC .
+
+  PUBLIC SECTION.
+    TYPES: BEGIN OF ty_task_status,
+             task_id    TYPE string,
+             type       TYPE string,
+             status     TYPE string,
+             started_at TYPE timestampl,
+             progress   TYPE i,
+           END OF ty_task_status.
+    
+  PROTECTED SECTION.
+    METHODS: on_event REDEFINITION,
+             on_start REDEFINITION.
+             
+  PRIVATE SECTION.
+    DATA: mt_tasks TYPE TABLE OF ty_task_status,
+          mo_timer TYPE REF TO if_abap_timer.
+    
+    METHODS:
+      monitor_tasks,
+      cleanup_completed_tasks,
+      handle_task_event
+        IMPORTING iv_message TYPE string,
+      send_status_update
+        IMPORTING is_task TYPE ty_task_status.
+ENDCLASS.
+
+CLASS zcl_background_coordinator IMPLEMENTATION.
+  METHOD on_start.
+    " Подписка на события от фоновых процессов
+    cl_amc_channel_manager=>create_message_consumer(
+      i_application_id = 'ZAMC_BACKGROUND'
+      i_channel_id     = '/background/events'
+    )->start_message_delivery( i_receiver = me ).
+    
+    " Таймер для мониторинга (каждые 30 секунд)
+    mo_timer = cl_abap_timer_manager=>get_timer_manager( )->start_timer(
+      i_timeout = 30
+      i_timer_handler = me
+    ).
+  ENDMETHOD.
+  
+  METHOD on_event.
+    CASE i_event_type.
+      WHEN if_abap_daemon_extension=>co_event_type_timer.
+        monitor_tasks( ).
+        cleanup_completed_tasks( ).
+        
+      WHEN if_abap_daemon_extension=>co_event_type_message.
+        " Обработка событий от фоновых процессов
+        DATA(lo_message) = CAST if_amc_message_text(
+          i_message_manager->get_message( ) ).
+        handle_task_event( lo_message->get_text( ) ).
+        
+    ENDCASE.
+  ENDMETHOD.
+  
+  METHOD monitor_tasks.
+    " Проверка статуса всех активных задач
+    LOOP AT mt_tasks INTO DATA(ls_task) WHERE status = 'RUNNING'.
+      " Проверка через соответствующий API
+      CASE ls_task-type.
+        WHEN 'BGPF'.
+          " Проверка статуса bgPF unit
+          TRY.
+              DATA(lo_unit) = cl_bgpf_unit_factory=>get_instance( 
+                )->get_unit( ls_task-task_id ).
+              DATA(lv_status) = lo_unit->get_status( ).
+              
+              IF lv_status = if_bgpf_unit=>co_status_completed.
+                ls_task-status = 'COMPLETED'.
+                MODIFY mt_tasks FROM ls_task TRANSPORTING status.
+                send_status_update( ls_task ).
+              ENDIF.
+              
+            CATCH cx_bgpf_error.
+              ls_task-status = 'ERROR'.
+              MODIFY mt_tasks FROM ls_task TRANSPORTING status.
+          ENDTRY.
+          
+        WHEN 'BGRFC'.
+          " Проверка статуса bgRFC через мониторинг API
+          " Implementation depends on specific bgRFC monitoring
+          
+      ENDCASE.
+    ENDLOOP.
+  ENDMETHOD.
+  
+  METHOD handle_task_event.
+    " Обработка событий от задач
+    DATA: BEGIN OF ls_event,
+            event_type TYPE string,
+            task_id    TYPE string,
+            status     TYPE string,
+            progress   TYPE i,
+          END OF ls_event.
+    
+    /ui2/cl_json=>deserialize(
+      EXPORTING json = iv_message
+      CHANGING  data = ls_event
+    ).
+    
+    " Обновление статуса задачи
+    READ TABLE mt_tasks INTO DATA(ls_task) 
+      WITH KEY task_id = ls_event-task_id.
+    IF sy-subrc = 0.
+      ls_task-status = ls_event-status.
+      ls_task-progress = ls_event-progress.
+      MODIFY mt_tasks FROM ls_task TRANSPORTING status progress.
+      
+      " Уведомление клиентов о изменении статуса
+      send_status_update( ls_task ).
+    ENDIF.
+  ENDMETHOD.
+ENDCLASS.
+```
+
+### Практический пример: Файловый монитор
+
+Демон контролирует файловую систему и запускает bgPF процессы для обработки новых файлов:
+
+```abap
+CLASS zcl_file_monitor_daemon DEFINITION
+  PUBLIC
+  INHERITING FROM cl_abap_daemon_ext_base
+  FINAL
+  CREATE PUBLIC .
+
+  PRIVATE SECTION.
+    DATA: mv_watch_directory TYPE string,
+          mt_processed_files TYPE TABLE OF string.
+    
+    METHODS:
+      scan_directory
+        RETURNING VALUE(rt_files) TYPE string_table,
+      trigger_file_processing
+        IMPORTING iv_filename TYPE string
+        RAISING   cx_bgpf_error.
+ENDCLASS.
+
+CLASS zcl_file_monitor_daemon IMPLEMENTATION.
+  METHOD on_start.
+    mv_watch_directory = '/tmp/inbound/'.
+    
+    " Сканирование каждые 10 секунд
+    cl_abap_timer_manager=>get_timer_manager( )->start_timer(
+      i_timeout = 10
+      i_timer_handler = me
+    ).
+  ENDMETHOD.
+  
+  METHOD on_event.
+    IF i_event_type = if_abap_daemon_extension=>co_event_type_timer.
+      " Сканирование новых файлов
+      DATA(lt_files) = scan_directory( ).
+      
+      LOOP AT lt_files INTO DATA(lv_file).
+        " Проверка, не обрабатывался ли файл
+        READ TABLE mt_processed_files TRANSPORTING NO FIELDS
+          WITH KEY table_line = lv_file.
+        IF sy-subrc <> 0.
+          " Новый файл - запуск обработки
+          TRY.
+              trigger_file_processing( lv_file ).
+              APPEND lv_file TO mt_processed_files.
+              
+            CATCH cx_bgpf_error INTO DATA(lx_error).
+              MESSAGE |File processing failed: { lx_error->get_text( ) }| TYPE 'E'.
+          ENDTRY.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+  ENDMETHOD.
+  
+  METHOD trigger_file_processing.
+    " Запуск bgPF процесса для обработки файла
+    DATA(lo_unit) = cl_bgpf_unit_factory=>get_instance( )->create_unit(
+      i_name = |FILE_PROCESS_{ iv_filename }|
+    ).
+    
+    lo_unit->add_task(
+      i_task_name   = 'PARSE_FILE'
+      i_task_class  = 'ZCL_FILE_PARSER'
+      i_task_method = 'PROCESS'
+      i_task_data   = iv_filename
+    ).
+    
+    lo_unit->add_task(
+      i_task_name   = 'VALIDATE_DATA'
+      i_task_class  = 'ZCL_DATA_VALIDATOR'
+      i_task_method = 'VALIDATE'
+      i_depends_on  = VALUE #( ( 'PARSE_FILE' ) )
+    ).
+    
+    lo_unit->add_task(
+      i_task_name   = 'SAVE_TO_DB'
+      i_task_class  = 'ZCL_DB_PERSISTER'
+      i_task_method = 'SAVE'
+      i_depends_on  = VALUE #( ( 'VALIDATE_DATA' ) )
+    ).
+    
+    " Callback для уведомления через AMC
+    lo_unit->set_callback(
+      i_callback_class  = 'ZCL_FILE_PROCESS_CALLBACK'
+      i_callback_method = 'ON_COMPLETE'
+      i_callback_data   = iv_filename
+    ).
+    
+    lo_unit->start( ).
+    
+    " Уведомление о запуске
+    cl_amc_channel_manager=>create_message_producer(
+      i_application_id = 'ZAMC_FILES'
+      i_channel_id     = '/files/processing'
+    )->send_message( |File processing started: { iv_filename }| ).
+  ENDMETHOD.
+ENDCLASS.
+```
+
+### Архитектурные паттерны интеграции
+
+```mermaid
+graph TB
+    subgraph "Integration Patterns"
+        subgraph "Event-Driven Pattern"
+            DAEMON1[ABAP Daemon<br/>Event Monitor]
+            AMC1[AMC Channel]
+            BGPF1[bgPF Process]
+            
+            DAEMON1 -->|Event Detection| AMC1
+            AMC1 -->|Trigger| BGPF1
+        end
+        
+        subgraph "Coordinator Pattern"
+            DAEMON2[Coordinator Daemon]
+            BGPF2[bgPF Unit 1]
+            BGPF3[bgPF Unit 2]
+            BGRFC1[bgRFC Call]
+            
+            DAEMON2 -->|Orchestrate| BGPF2
+            DAEMON2 -->|Orchestrate| BGPF3
+            DAEMON2 -->|Delegate| BGRFC1
+        end
+        
+        subgraph "Hybrid Processing"
+            REALTIME[Real-time Logic<br/>Daemon]
+            BATCH[Batch Processing<br/>bgPF]
+            
+            REALTIME -->|Heavy Tasks| BATCH
+            BATCH -->|Results| REALTIME
+        end
+    end
+    
+    style DAEMON1 fill:#99ff99,stroke:#333,stroke-width:2px
+    style DAEMON2 fill:#ffcc99,stroke:#333,stroke-width:2px
+    style BGPF1 fill:#99ccff,stroke:#333,stroke-width:2px
+```
+
+Интеграция ABAP Daemons с традиционными фреймворками фоновой обработки открывает новые возможности для создания эффективных, отказоустойчивых и масштабируемых решений. Правильный выбор фреймворка зависит от специфических требований к производительности, надежности и архитектуре системы.
+
+Подробнее о фреймворках фоновой обработки см. **Главу 11.2**.
+
 ## Заключение
 
 Реактивная архитектура в ABAP представляет собой революционное расширение классической модели выполнения:

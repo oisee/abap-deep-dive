@@ -152,7 +152,7 @@ sequenceDiagram
     end
 ```
 
-## 11.2. Ограничения ABAP языка в облаке
+## 11.3. Ограничения ABAP языка в облаке
 
 Steampunk вводит строгие ограничения на использование ABAP для обеспечения cloud-совместимости, безопасности и изоляции tenant'ов.
 
@@ -273,7 +273,7 @@ flowchart TD
     FIX_SQL --> MIGRATE
 ```
 
-## 11.3. Multi-tenancy и изоляция
+## 11.4. Multi-tenancy и изоляция
 
 ### Архитектура изоляции tenant'ов
 
@@ -351,7 +351,7 @@ sequenceDiagram
     Note over CUSTOMER,ABAP_ENV: Tenant fully isolated and ready
 ```
 
-## 11.4. Embedded Steampunk vs Steampunk
+## 11.5. Embedded Steampunk vs Steampunk
 
 ### Deployment Models Comparison
 
